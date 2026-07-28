@@ -1,0 +1,24 @@
+# Dependencies
+node_modules/
+target/
+
+# IDE
+.idea/
+*.iml
+.vscode/
+
+# Environment
+.env
+*.env.local
+
+# Credentials - JANGAN commit ke GitHub!
+Credential.json
+backend/src/main/resources/credentials.json
+
+# Build
+dist/
+build/
+
+# OS
+.DS_Store
+Thumbs.db
