@@ -3,8 +3,8 @@ const AUTH_KEY = 'plnk3_auth';
 /**
  * Simpan state login ke sessionStorage
  */
-export function setLoggedIn(username) {
-  sessionStorage.setItem(AUTH_KEY, JSON.stringify({ isLoggedIn: true, username }));
+export function setLoggedIn(username, token) {
+  sessionStorage.setItem(AUTH_KEY, JSON.stringify({ isLoggedIn: true, username, token }));
 }
 
 /**
@@ -35,6 +35,19 @@ export function getUsername() {
   if (!auth) return '';
   try {
     return JSON.parse(auth).username || '';
+  } catch {
+    return '';
+  }
+}
+
+/**
+ * Ambil token JWT
+ */
+export function getToken() {
+  const auth = sessionStorage.getItem(AUTH_KEY);
+  if (!auth) return '';
+  try {
+    return JSON.parse(auth).token || '';
   } catch {
     return '';
   }

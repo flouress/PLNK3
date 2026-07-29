@@ -79,7 +79,7 @@ export function renderLogin(container, onLoginSuccess) {
       const result = await apiLogin(username, password);
 
       if (result.success) {
-        setLoggedIn(result.username);
+        setLoggedIn(result.username, result.token);
         onLoginSuccess();
       } else {
         showError(errorEl, result.message || 'Login gagal');
