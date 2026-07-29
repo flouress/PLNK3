@@ -4,8 +4,10 @@ import { renderDataTable } from '../components/dataTable.js';
 import { renderRankingTable } from '../components/rankingTable.js';
 import { renderTabNavigation } from '../components/tabNavigation.js';
 import { renderDateFilter } from '../components/dateFilter.js';
+import { renderMainDashboard } from '../components/mainDashboard.js';
 
 const TABS = [
+  { id: 'utama', label: 'Utama' },
   { id: 'psa', label: 'PSA' },
   { id: 'cvv', label: 'CVV' },
   { id: 'brosur', label: 'Brosur' },
@@ -35,7 +37,7 @@ const BROSUR_COLUMNS = [
   { key: 'pelaksana', label: 'Pelaksana' },
 ];
 
-let currentTab = 'psa';
+let currentTab = 'utama';
 let currentFilters = {};
 
 /**
@@ -122,6 +124,10 @@ async function loadTableData(container) {
 
   try {
     switch (currentTab) {
+      case 'utama': {
+        await renderMainDashboard(container);
+        break;
+      }
       case 'psa': {
         const data = await fetchPsa(currentFilters);
         renderDataTable(container, 'Laporan PSA', PSA_COLUMNS, data);
