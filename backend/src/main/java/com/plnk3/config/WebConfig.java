@@ -16,14 +16,16 @@ public class WebConfig implements WebMvcConfigurer {
     @Override
     public void addCorsMappings(CorsRegistry registry) {
         registry.addMapping("/api/**")
-                .allowedOrigins(
-                        "http://localhost:5173",  // Vite dev server
-                        "http://localhost:4173",  // Vite preview
-                        "https://*.vercel.app"    // Vercel production
+                .allowedOriginPatterns(
+                        "http://localhost:5173",   // Vite dev server
+                        "http://localhost:4173"    // Vite preview
+                        // TODO: Ganti dengan domain production spesifik saat deploy
+                        // Contoh: "https://dashboard-k3.vercel.app"
                 )
-                .allowedMethods("GET", "POST", "OPTIONS", "PUT", "DELETE")
-                .allowedHeaders("*")
-                .allowCredentials(true);
+                .allowedMethods("GET", "POST", "OPTIONS")
+                .allowedHeaders("Authorization", "Content-Type")
+                .allowCredentials(true)
+                .maxAge(3600); // Cache preflight 1 jam
     }
 
     @Override
@@ -33,3 +35,4 @@ public class WebConfig implements WebMvcConfigurer {
                 .excludePathPatterns("/api/auth/login"); // Kecualikan endpoint login
     }
 }
+
