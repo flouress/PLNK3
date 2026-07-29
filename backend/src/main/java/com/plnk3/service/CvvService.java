@@ -31,77 +31,91 @@ public class CvvService {
         this.spreadsheetId = spreadsheetId;
     }
 
+    private List<CvvRecord> cachedData = null;
+    private long lastCacheTime = 0;
+    private static final long CACHE_DURATION_MS = 5 * 60 * 1000; // 5 menit
+
     /**
      * Mengambil data CVV dari Google Sheets (multi-tab per bulan) dengan optional filter tanggal.
      */
     public List<CvvRecord> getData(String startDate, String endDate, Integer month) throws IOException {
-        // 1. Dapatkan daftar nama sheet yang ada di dokumen
-        List<com.google.api.services.sheets.v4.model.Sheet> sheets = sheetsService.spreadsheets()
-                .get(spreadsheetId)
-                .execute()
-                .getSheets();
-                
-        List<String> existingTabs = new ArrayList<>();
-        for (com.google.api.services.sheets.v4.model.Sheet sheet : sheets) {
-            existingTabs.add(sheet.getProperties().getTitle().toUpperCase());
-        }
+        List<CvvRecord> allData;
 
-        List<String> rangesToFetch = new ArrayList<>();
-        
-        if (month != null && month >= 1 && month <= 12) {
-            // Jika ada filter bulan, cek apakah tab-nya ada
-            String targetTab = MONTH_TABS.get(month - 1);
-            if (existingTabs.contains(targetTab)) {
-                rangesToFetch.add(targetTab + "!A:F");
-            }
+        if (cachedData != null && (System.currentTimeMillis() - lastCacheTime) < CACHE_DURATION_MS) {
+            allData = cachedData;
         } else {
-            // Fetch semua tab bulan yang tersedia di dokumen
-            for (String tab : MONTH_TABS) {
-                if (existingTabs.contains(tab)) {
-                    rangesToFetch.add(tab + "!A:F");
+            try {
+                // 1. Dapatkan daftar nama sheet yang ada di dokumen
+                List<com.google.api.services.sheets.v4.model.Sheet> sheets = sheetsService.spreadsheets()
+                        .get(spreadsheetId)
+                        .execute()
+                        .getSheets();
+                        
+                List<String> existingTabs = new ArrayList<>();
+                for (com.google.api.services.sheets.v4.model.Sheet sheet : sheets) {
+                    existingTabs.add(sheet.getProperties().getTitle().toUpperCase());
                 }
-            }
-        }
 
-        // Jika tidak ada tab bulan yang cocok, kembalikan list kosong
-        if (rangesToFetch.isEmpty()) {
-            return new ArrayList<>();
-        }
-
-        BatchGetValuesResponse response = sheetsService.spreadsheets().values()
-                .batchGet(spreadsheetId)
-                .setRanges(rangesToFetch)
-                .execute();
-
-        List<CvvRecord> records = new ArrayList<>();
-        
-        List<ValueRange> valueRanges = response.getValueRanges();
-        if (valueRanges != null) {
-            for (ValueRange valueRange : valueRanges) {
-                List<List<Object>> values = valueRange.getValues();
-                if (values != null && values.size() > 1) {
-                    // Start from index 1 to skip header row of each tab
-                    for (int i = 1; i < values.size(); i++) {
-                        List<Object> row = values.get(i);
-                        // Cek kalau baris kosong (kolom pertama timestamp tidak ada)
-                        if (row == null || row.isEmpty() || getCell(row, 0).trim().isEmpty()) {
-                            continue;
-                        }
-                        CvvRecord record = new CvvRecord(
-                                getCell(row, 0),
-                                getCell(row, 1),
-                                getCell(row, 2),
-                                getCell(row, 3),
-                                getCell(row, 4),
-                                getCell(row, 5)
-                        );
-                        records.add(record);
+                List<String> rangesToFetch = new ArrayList<>();
+                // Fetch semua tab bulan yang tersedia di dokumen untuk di-cache
+                for (String tab : MONTH_TABS) {
+                    if (existingTabs.contains(tab)) {
+                        rangesToFetch.add(tab + "!A:F");
                     }
                 }
+
+                // Jika tidak ada tab bulan yang cocok, kembalikan list kosong
+                if (rangesToFetch.isEmpty()) {
+                    allData = new ArrayList<>();
+                } else {
+                    BatchGetValuesResponse response = sheetsService.spreadsheets().values()
+                            .batchGet(spreadsheetId)
+                            .setRanges(rangesToFetch)
+                            .execute();
+
+                    List<CvvRecord> records = new ArrayList<>();
+                    
+                    List<ValueRange> valueRanges = response.getValueRanges();
+                    if (valueRanges != null) {
+                        for (ValueRange valueRange : valueRanges) {
+                            List<List<Object>> values = valueRange.getValues();
+                            if (values != null && values.size() > 1) {
+                                // Start from index 1 to skip header row of each tab
+                                for (int i = 1; i < values.size(); i++) {
+                                    List<Object> row = values.get(i);
+                                    // Cek kalau baris kosong (kolom pertama timestamp tidak ada)
+                                    if (row == null || row.isEmpty() || getCell(row, 0).trim().isEmpty()) {
+                                        continue;
+                                    }
+                                    CvvRecord record = new CvvRecord(
+                                            getCell(row, 0),
+                                            getCell(row, 1),
+                                            getCell(row, 2),
+                                            getCell(row, 3),
+                                            getCell(row, 4),
+                                            getCell(row, 5)
+                                    );
+                                    records.add(record);
+                                }
+                            }
+                        }
+                    }
+                    allData = records;
+                }
+
+                cachedData = allData;
+                lastCacheTime = System.currentTimeMillis();
+            } catch (Exception e) {
+                // Gunakan cache lama jika ada, atau list kosong jika error
+                if (cachedData != null) {
+                    allData = cachedData;
+                } else {
+                    allData = new ArrayList<>();
+                }
             }
         }
 
-        return applyFilters(records, startDate, endDate, month);
+        return applyFilters(allData, startDate, endDate, month);
     }
 
     private List<CvvRecord> applyFilters(List<CvvRecord> records,

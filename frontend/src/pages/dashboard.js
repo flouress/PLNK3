@@ -9,7 +9,7 @@ import { renderMainDashboard } from '../components/mainDashboard.js';
 const TABS = [
   { id: 'utama', label: 'Utama' },
   { id: 'psa', label: 'PSA' },
-  { id: 'cvv', label: 'CVV' },
+  { id: 'cvv', label: 'CCV' },
   { id: 'brosur', label: 'Brosur' },
   { id: 'ranking', label: 'Ranking' },
 ];
@@ -100,8 +100,8 @@ function renderFilterAndTable() {
   const filterContainer = document.getElementById('filter-container');
   const tableContainer = document.getElementById('table-container');
 
-  // Filter hanya untuk PSA dan CVV
-  if (currentTab === 'psa' || currentTab === 'cvv') {
+  // Filter untuk PSA, CVV, dan Brosur
+  if (currentTab === 'psa' || currentTab === 'cvv' || currentTab === 'brosur') {
     renderDateFilter(filterContainer, currentFilters, (filters) => {
       currentFilters = filters;
       loadTableData(tableContainer);
@@ -135,17 +135,22 @@ async function loadTableData(container) {
       }
       case 'cvv': {
         const data = await fetchCvv(currentFilters);
-        renderDataTable(container, 'Laporan CVV', CVV_COLUMNS, data);
+        renderDataTable(container, 'Laporan CCV', CVV_COLUMNS, data);
         break;
       }
       case 'brosur': {
-        const data = await fetchBrosur();
+        const data = await fetchBrosur(currentFilters);
         renderDataTable(container, 'Data Brosur', BROSUR_COLUMNS, data);
         break;
       }
       case 'ranking': {
-        const data = await fetchRanking();
-        renderRankingTable(container, data);
+        const data = await fetchRanking(currentFilters);
+        // Ganti label "CVV" -> "CCV" hanya untuk tampilan UI
+        const displayData = data.map(group => ({
+          ...group,
+          unitName: group.unitName.replace(/CVV/g, 'CCV')
+        }));
+        renderRankingTable(container, displayData);
         break;
       }
     }

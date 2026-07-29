@@ -25,6 +25,10 @@ public class PsaService {
         this.spreadsheetId = spreadsheetId;
     }
 
+    private List<PsaRecord> cachedData = null;
+    private long lastCacheTime = 0;
+    private static final long CACHE_DURATION_MS = 5 * 60 * 1000; // 5 menit
+
     /**
      * Mengambil data PSA dari Google Sheets dengan optional filter tanggal.
      *
@@ -33,32 +37,50 @@ public class PsaService {
      * @param month     filter bulan spesifik (1-12), nullable
      */
     public List<PsaRecord> getData(String startDate, String endDate, Integer month) throws IOException {
-        String range = "PSA!A:E";
-        List<List<Object>> values = sheetsService.spreadsheets().values()
-                .get(spreadsheetId, range)
-                .execute()
-                .getValues();
+        List<PsaRecord> allData;
 
-        if (values == null || values.size() <= 1) {
-            return new ArrayList<>();
-        }
+        if (cachedData != null && (System.currentTimeMillis() - lastCacheTime) < CACHE_DURATION_MS) {
+            allData = cachedData;
+        } else {
+            try {
+                String range = "PSA!A:E";
+                List<List<Object>> values = sheetsService.spreadsheets().values()
+                        .get(spreadsheetId, range)
+                        .execute()
+                        .getValues();
 
-        // Skip header row, map ke PsaRecord
-        List<PsaRecord> records = new ArrayList<>();
-        for (int i = 1; i < values.size(); i++) {
-            List<Object> row = values.get(i);
-            PsaRecord record = new PsaRecord(
-                    getCell(row, 0),
-                    getCell(row, 1),
-                    getCell(row, 2),
-                    getCell(row, 3),
-                    getCell(row, 4)
-            );
-            records.add(record);
+                if (values == null || values.size() <= 1) {
+                    allData = new ArrayList<>();
+                } else {
+                    List<PsaRecord> records = new ArrayList<>();
+                    for (int i = 1; i < values.size(); i++) {
+                        List<Object> row = values.get(i);
+                        PsaRecord record = new PsaRecord(
+                                getCell(row, 0),
+                                getCell(row, 1),
+                                getCell(row, 2),
+                                getCell(row, 3),
+                                getCell(row, 4)
+                        );
+                        records.add(record);
+                    }
+                    allData = records;
+                }
+                
+                cachedData = allData;
+                lastCacheTime = System.currentTimeMillis();
+            } catch (Exception e) {
+                // Gunakan cache lama jika ada, atau list kosong jika error (misal sheet tidak ada)
+                if (cachedData != null) {
+                    allData = cachedData;
+                } else {
+                    allData = new ArrayList<>();
+                }
+            }
         }
 
         // Apply filters jika ada
-        return applyFilters(records, startDate, endDate, month);
+        return applyFilters(allData, startDate, endDate, month);
     }
 
     private List<PsaRecord> applyFilters(List<PsaRecord> records,

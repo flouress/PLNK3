@@ -59,6 +59,8 @@ export function renderDateFilter(container, currentFilters, onApply) {
       <button class="btn-reset" id="btn-reset-filter">
         Atur Ulang
       </button>
+      
+      <div id="dt-toolbar-container" style="display:flex; gap:0.5rem; position:relative; margin-left:auto; align-items:center;"></div>
     </div>
   `;
 

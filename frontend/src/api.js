@@ -61,15 +61,25 @@ export async function fetchCvv(filters = {}) {
 /**
  * Ambil data Brosur
  */
-export async function fetchBrosur() {
-  const response = await api.get('/api/brosur');
+export async function fetchBrosur(filters = {}) {
+  const params = {};
+  if (filters.startDate) params.startDate = filters.startDate;
+  if (filters.endDate) params.endDate = filters.endDate;
+  if (filters.month) params.month = filters.month;
+
+  const response = await api.get('/api/brosur', { params });
   return response.data;
 }
 
 /**
  * Ambil data Ranking
  */
-export async function fetchRanking() {
-  const response = await api.get('/api/ranking');
+export async function fetchRanking(filters = {}) {
+  const params = {};
+  if (filters.startDate) params.startDate = filters.startDate;
+  if (filters.endDate) params.endDate = filters.endDate;
+  if (filters.month) params.month = filters.month;
+
+  const response = await api.get('/api/ranking', { params });
   return response.data;
 }

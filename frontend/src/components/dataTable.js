@@ -27,19 +27,81 @@ export function renderDataTable(container, title, columns, data) {
     return;
   }
 
-  // State untuk pagination
+  // State untuk pagination & sort & filter
   let currentPage = 1;
   let itemsPerPage = 10;
-  const totalItems = data.length;
+  let sortKey = null;
+  let sortOrder = 'asc';
+  
+  let globalSearch = '';
+  let columnFilters = {};
+  let isFilterPopupOpen = false;
+  let focusSearch = false;
+  
+  const totalItemsInitial = data.length;
 
   function render() {
+    // 1. Apply Filters
+    let displayData = data.filter(row => {
+      // Global search
+      if (globalSearch) {
+        const q = globalSearch.toLowerCase();
+        const match = columns.some(col => (row[col.key] || '').toString().toLowerCase().includes(q));
+        if (!match) return false;
+      }
+      
+      // Column filters
+      for (const [key, val] of Object.entries(columnFilters)) {
+         if (val && (row[key] || '').toString() !== val) return false;
+      }
+      
+      return true;
+    });
+
+    const totalItems = displayData.length;
+
+    // 2. Sort Data
+    if (sortKey) {
+        displayData.sort((a, b) => {
+            let valA = (a[sortKey] || '').toString();
+            let valB = (b[sortKey] || '').toString();
+            
+            if (sortKey.toLowerCase().includes('timestamp') || sortKey.toLowerCase().includes('tanggal')) {
+                const parseDate = (ts) => {
+                    if (!ts) return 0;
+                    const datePart = ts.split(' ')[0];
+                    if (datePart.includes('/')) {
+                        const p = datePart.split('/');
+                        if (p.length===3) return new Date(p[2], p[1]-1, p[0]).getTime();
+                    } else if (datePart.includes('-')) {
+                        const p = datePart.split('-');
+                        if (p.length===3) {
+                            if (p[0].length === 4) return new Date(p[0], p[1]-1, p[2]).getTime();
+                            return new Date(p[2], p[1]-1, p[0]).getTime();
+                        }
+                    }
+                    return 0;
+                };
+                valA = parseDate(valA);
+                valB = parseDate(valB);
+                return sortOrder === 'asc' ? valA - valB : valB - valA;
+            } else {
+                valA = valA.toLowerCase();
+                valB = valB.toLowerCase();
+                if (valA < valB) return sortOrder === 'asc' ? -1 : 1;
+                if (valA > valB) return sortOrder === 'asc' ? 1 : -1;
+                return 0;
+            }
+        });
+    }
+
     const totalPages = itemsPerPage === 'all' ? 1 : Math.ceil(totalItems / itemsPerPage);
     if (currentPage > totalPages) currentPage = totalPages;
     if (currentPage < 1) currentPage = 1;
 
     const startIdx = itemsPerPage === 'all' ? 0 : (currentPage - 1) * itemsPerPage;
     const endIdx = itemsPerPage === 'all' ? totalItems : Math.min(startIdx + itemsPerPage, totalItems);
-    const paginatedData = data.slice(startIdx, endIdx);
+    const paginatedData = displayData.slice(startIdx, endIdx);
 
     const rows = paginatedData.map(row => `
       <tr>
@@ -84,7 +146,16 @@ export function renderDataTable(container, title, columns, data) {
           <table class="data-table">
             <thead>
               <tr>
-                ${columns.map(col => `<th>${col.label}</th>`).join('')}
+                ${columns.map(col => `
+                  <th class="sortable-header" data-key="${col.key}" style="cursor: pointer; user-select: none; transition: background 0.2s;" onmouseover="this.style.backgroundColor='rgba(0,0,0,0.05)'" onmouseout="this.style.backgroundColor='transparent'">
+                    <div style="display: flex; align-items: center; gap: 4px;">
+                      ${col.label}
+                      <span style="font-size: 0.8rem; color: ${sortKey === col.key ? 'var(--color-primary)' : 'rgba(0,0,0,0.2)'};">
+                        ${sortKey === col.key ? (sortOrder === 'asc' ? '↑' : '↓') : '↕'}
+                      </span>
+                    </div>
+                  </th>
+                `).join('')}
               </tr>
             </thead>
             <tbody>
@@ -120,7 +191,7 @@ export function renderDataTable(container, title, columns, data) {
       </div>
     `;
 
-    // Bind events
+    // Limit event
     const limitSelect = container.querySelector('#limit-select');
     if (limitSelect) {
       limitSelect.addEventListener('change', (e) => {
@@ -150,6 +221,111 @@ export function renderDataTable(container, title, columns, data) {
         render();
       });
     });
+
+    const headers = container.querySelectorAll('.sortable-header');
+    headers.forEach(th => {
+      th.addEventListener('click', () => {
+        const key = th.dataset.key;
+        if (sortKey === key) {
+          sortOrder = sortOrder === 'asc' ? 'desc' : 'asc';
+        } else {
+          sortKey = key;
+          sortOrder = 'asc';
+        }
+        currentPage = 1; // reset to page 1 on sort
+        render();
+      });
+    });
+    
+    // Render the toolbar externally
+    renderToolbar();
+  }
+
+  function renderToolbar() {
+    const toolbarContainer = document.getElementById('dt-toolbar-container');
+    if (!toolbarContainer) return;
+
+    toolbarContainer.innerHTML = `
+       <input type="text" id="dt-search" value="${escapeHtml(globalSearch)}" placeholder="Cari data..." style="flex:1; padding: 0.4rem 0.75rem; border: 1px solid var(--color-border); border-radius: 6px; outline:none; font-family:inherit; min-width:150px; box-sizing: border-box;" />
+       <button id="dt-filter-btn" style="padding: 0.4rem 0.75rem; border: 1px solid var(--color-border); border-radius: 6px; background: ${Object.values(columnFilters).some(v => v) ? 'var(--color-primary)' : 'white'}; color: ${Object.values(columnFilters).some(v => v) ? 'white' : 'var(--color-text)'}; cursor:pointer; display:flex; align-items:center; gap:4px; font-family:inherit;">
+         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon></svg>
+         Filter
+       </button>
+       
+       ${isFilterPopupOpen ? `
+         <div class="filter-popup" style="position:absolute; top:115%; right:0; background:white; border:1px solid var(--color-border); border-radius:8px; padding:1rem; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); z-index:100; min-width:250px; text-align:left;">
+            <h4 style="margin-top:0; margin-bottom:1rem; font-size:0.9rem; color:var(--color-text);">Filter Lanjutan</h4>
+            
+            <div style="max-height:300px; overflow-y:auto; padding-right:0.5rem;">
+                ${columns.map(col => {
+                    const uniqueVals = [...new Set(data.map(r => (r[col.key] || '').toString().trim()).filter(Boolean))].sort();
+                    if (uniqueVals.length === 0) return '';
+                    
+                    return `
+                      <div style="margin-bottom:0.75rem;">
+                         <label style="display:block; font-size:0.75rem; color:var(--color-text-muted); margin-bottom:0.25rem;">${col.label}</label>
+                         <select class="dt-col-filter" data-key="${col.key}" style="width:100%; padding:0.4rem; border:1px solid var(--color-border); border-radius:4px; font-size:0.8rem; outline:none; font-family:inherit; box-sizing: border-box;">
+                           <option value="">Semua</option>
+                           ${uniqueVals.map(val => `<option value="${escapeHtml(val)}" ${columnFilters[col.key] === val ? 'selected' : ''}>${escapeHtml(val)}</option>`).join('')}
+                         </select>
+                      </div>
+                    `;
+                }).join('')}
+            </div>
+            
+            <div style="display:flex; justify-content:flex-end; gap:0.5rem; margin-top:1rem;">
+               <button id="dt-filter-reset" style="padding:0.4rem 0.75rem; border:1px solid var(--color-border); background:white; color:var(--color-text); border-radius:4px; cursor:pointer; font-size:0.8rem; font-family:inherit;">Reset</button>
+               <button id="dt-filter-apply" style="padding:0.4rem 0.75rem; border:none; background:var(--color-primary); color:white; border-radius:4px; cursor:pointer; font-size:0.8rem; font-family:inherit;">Terapkan</button>
+            </div>
+         </div>
+       ` : ''}
+    `;
+
+    // Bind toolbar events
+    const searchInput = toolbarContainer.querySelector('#dt-search');
+    if (focusSearch && searchInput) {
+        searchInput.focus();
+        searchInput.setSelectionRange(globalSearch.length, globalSearch.length);
+        focusSearch = false;
+    }
+    
+    if (searchInput) {
+        searchInput.addEventListener('input', (e) => {
+            globalSearch = e.target.value;
+            currentPage = 1;
+            focusSearch = true;
+            render();
+        });
+    }
+    
+    const filterBtn = toolbarContainer.querySelector('#dt-filter-btn');
+    if (filterBtn) {
+        filterBtn.addEventListener('click', () => {
+            isFilterPopupOpen = !isFilterPopupOpen;
+            renderToolbar(); // Only re-render toolbar to open/close popup, no need to re-render full table
+        });
+    }
+    
+    if (isFilterPopupOpen) {
+        toolbarContainer.querySelectorAll('.dt-col-filter').forEach(select => {
+            select.addEventListener('change', (e) => {
+                columnFilters[e.target.dataset.key] = e.target.value;
+            });
+        });
+        
+        toolbarContainer.querySelector('#dt-filter-reset').addEventListener('click', () => {
+            columnFilters = {};
+            isFilterPopupOpen = false;
+            currentPage = 1;
+            render();
+        });
+        
+        toolbarContainer.querySelector('#dt-filter-apply').addEventListener('click', () => {
+            isFilterPopupOpen = false;
+            currentPage = 1;
+            render();
+        });
+    }
   }
 
   // Initial render

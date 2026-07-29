@@ -1,119 +1,82 @@
 package com.plnk3.service;
 
-import com.google.api.services.sheets.v4.Sheets;
+import com.plnk3.model.BrosurRecord;
+import com.plnk3.model.CvvRecord;
+import com.plnk3.model.PsaRecord;
 import com.plnk3.model.RankingGroup;
-import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.*;
 
 @Service
 public class RankingService {
 
-    private final Sheets sheetsService;
-    private final String spreadsheetId;
+    private final PsaService psaService;
+    private final CvvService cvvService;
+    private final BrosurService brosurService;
 
-    public RankingService(Sheets sheetsService, @Qualifier("spreadsheetId") String spreadsheetId) {
-        this.sheetsService = sheetsService;
-        this.spreadsheetId = spreadsheetId;
+    public RankingService(PsaService psaService, CvvService cvvService, BrosurService brosurService) {
+        this.psaService = psaService;
+        this.cvvService = cvvService;
+        this.brosurService = brosurService;
     }
 
-    /**
-     * Mengambil data ranking dari Google Sheets dan mengubahnya menjadi
-     * nested JSON berdasarkan unit (misal: YANTEK, TEKNIK, dll).
-     *
-     * Struktur di Sheets:
-     * - Baris header unit: hanya kolom pertama terisi nama unit (misal "YANTEK")
-     * - Baris data: RANK | NAMA | JUMLAH
-     *
-     * Hasil: List<RankingGroup> di mana setiap group punya unitName dan list rankings.
-     */
-    public List<RankingGroup> getData() throws IOException {
-        String range = "Ranking!A:C";
-        List<List<Object>> values = sheetsService.spreadsheets().values()
-                .get(spreadsheetId, range)
-                .execute()
-                .getValues();
-
-        if (values == null || values.isEmpty()) {
-            return new ArrayList<>();
-        }
+    public List<RankingGroup> getData(String startDate, String endDate, Integer month) throws IOException {
+        List<PsaRecord> psaData = psaService.getData(startDate, endDate, month);
+        List<CvvRecord> cvvData = cvvService.getData(startDate, endDate, month);
+        List<BrosurRecord> brosurData = brosurService.getData(startDate, endDate, month);
 
         List<RankingGroup> groups = new ArrayList<>();
-        RankingGroup currentGroup = null;
 
-        for (int i = 0; i < values.size(); i++) {
-            List<Object> row = values.get(i);
-
-            if (row.isEmpty()) continue;
-
-            String firstCell = row.get(0).toString().trim();
-
-            // Skip header row "RANK" / "NAMA" / "JUMLAH"
-            if (firstCell.equalsIgnoreCase("RANK")) continue;
-
-            // Deteksi baris header unit:
-            // Jika hanya kolom pertama terisi ATAU kolom 2 & 3 kosong → ini nama unit
-            boolean isUnitHeader = isUnitHeaderRow(row, firstCell);
-
-            if (isUnitHeader) {
-                currentGroup = new RankingGroup(firstCell, new ArrayList<>());
-                groups.add(currentGroup);
-            } else if (currentGroup != null) {
-                // Baris data ranking
-                try {
-                    int rank = parseIntSafe(firstCell);
-                    String nama = getCell(row, 1);
-                    int jumlah = parseIntSafe(getCell(row, 2));
-                    currentGroup.getRankings().add(
-                            new RankingGroup.RankingEntry(rank, nama, jumlah));
-                } catch (NumberFormatException e) {
-                    // Jika tidak bisa di-parse sebagai angka, mungkin ini unit header
-                    // dengan format berbeda — buat group baru
-                    currentGroup = new RankingGroup(firstCell, new ArrayList<>());
-                    groups.add(currentGroup);
-                }
-            }
+        // 1. Ranking PSA
+        Map<String, Integer> psaScores = new HashMap<>();
+        for (PsaRecord r : psaData) {
+            String reporter = (r.getNamaInspektor() == null || r.getNamaInspektor().trim().isEmpty()) ? "Tidak Diketahui" : r.getNamaInspektor().trim();
+            psaScores.put(reporter, psaScores.getOrDefault(reporter, 0) + 1);
         }
+        groups.add(createRankingGroup("Ranking PSA", psaScores));
+
+        // 2. Ranking CVV
+        Map<String, Integer> cvvScores = new HashMap<>();
+        for (CvvRecord r : cvvData) {
+            String reporter = (r.getNamaObserver() == null || r.getNamaObserver().trim().isEmpty()) ? "Tidak Diketahui" : r.getNamaObserver().trim();
+            cvvScores.put(reporter, cvvScores.getOrDefault(reporter, 0) + 1);
+        }
+        groups.add(createRankingGroup("Ranking CVV", cvvScores));
+
+        // 3. Ranking Brosur
+        Map<String, Integer> brosurScores = new HashMap<>();
+        for (BrosurRecord r : brosurData) {
+            String reporter = (r.getPelaksana() == null || r.getPelaksana().trim().isEmpty()) ? "Tidak Diketahui" : r.getPelaksana().trim();
+            brosurScores.put(reporter, brosurScores.getOrDefault(reporter, 0) + 1);
+        }
+        groups.add(createRankingGroup("Ranking Brosur", brosurScores));
 
         return groups;
     }
 
-    /**
-     * Mendeteksi apakah sebuah baris adalah header nama unit.
-     * Header unit biasanya: hanya kolom pertama berisi teks non-numerik,
-     * kolom lainnya kosong.
-     */
-    private boolean isUnitHeaderRow(List<Object> row, String firstCell) {
-        // Jika firstCell adalah angka, bukan unit header
-        try {
-            Integer.parseInt(firstCell);
-            return false;
-        } catch (NumberFormatException e) {
-            // Bukan angka — cek apakah kolom lain kosong
-        }
+    private RankingGroup createRankingGroup(String groupName, Map<String, Integer> scores) {
+        List<Map.Entry<String, Integer>> sortedReporters = new ArrayList<>(scores.entrySet());
+        // Sort descending by score
+        sortedReporters.sort((a, b) -> b.getValue().compareTo(a.getValue()));
 
-        // Jika row hanya punya 1 cell, atau cell lain kosong → unit header
-        if (row.size() <= 1) return true;
+        List<RankingGroup.RankingEntry> rankings = new ArrayList<>();
+        int lastScore = -1;
+        int currentRank = 1;
 
-        for (int i = 1; i < row.size(); i++) {
-            if (row.get(i) != null && !row.get(i).toString().trim().isEmpty()) {
-                return false;
+        for (int i = 0; i < sortedReporters.size(); i++) {
+            Map.Entry<String, Integer> reporterEntry = sortedReporters.get(i);
+            int score = reporterEntry.getValue();
+            
+            if (score != lastScore) {
+                currentRank = i + 1;
+                lastScore = score;
             }
+            
+            rankings.add(new RankingGroup.RankingEntry(currentRank, reporterEntry.getKey(), score));
         }
-        return true;
-    }
 
-    private int parseIntSafe(String value) {
-        if (value == null || value.trim().isEmpty()) return 0;
-        return Integer.parseInt(value.trim());
-    }
-
-    private String getCell(List<Object> row, int index) {
-        return (row != null && index < row.size() && row.get(index) != null)
-                ? row.get(index).toString()
-                : "";
+        return new RankingGroup(groupName, rankings);
     }
 }

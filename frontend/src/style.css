@@ -623,9 +623,21 @@ body {
 
 .dashboard-cards-summary {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  grid-template-columns: repeat(4, 1fr);
   gap: 1.5rem;
   margin-bottom: 2rem;
+}
+
+@media (max-width: 1024px) {
+  .dashboard-cards-summary {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 640px) {
+  .dashboard-cards-summary {
+    grid-template-columns: 1fr;
+  }
 }
 
 .summary-card {
@@ -648,11 +660,38 @@ body {
 }
 
 .summary-label {
-  font-size: 0.9rem;
+  font-size: 0.85rem;
   color: var(--color-text-muted);
-  font-weight: 500;
+  font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.05em;
+  text-align: center;
+}
+
+.dashboard-grid-12 {
+  display: grid;
+  grid-template-columns: repeat(12, 1fr);
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.col-span-8 {
+  grid-column: span 8;
+}
+
+.col-span-4 {
+  grid-column: span 4;
+}
+
+@media (max-width: 1024px) {
+  .col-span-8, .col-span-4 {
+    grid-column: span 12;
+  }
+}
+
+.dashboard-ranking-section {
+  width: 100%;
+  background: transparent;
 }
 
 .charts-grid {
@@ -734,6 +773,8 @@ body {
 .text-blue-600 { color: #2563eb; }
 .bg-green-100 { background-color: #dcfce3; }
 .text-green-600 { color: #16a34a; }
+.bg-yellow-100 { background-color: #fef08a; }
+.text-yellow-600 { color: #ca8a04; }
 
 .recent-content {
   flex: 1;

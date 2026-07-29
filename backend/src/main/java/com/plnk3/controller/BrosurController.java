@@ -15,6 +15,7 @@ import java.util.List;
 public class BrosurController {
 
     private static final Logger log = LoggerFactory.getLogger(BrosurController.class);
+    private static final String DATE_PATTERN = "^\\d{4}-\\d{2}-\\d{2}$";
 
     private final BrosurService brosurService;
 
@@ -23,9 +24,26 @@ public class BrosurController {
     }
 
     @GetMapping
-    public ResponseEntity<?> getBrosurData() {
+    public ResponseEntity<?> getBrosurData(
+            @RequestParam(required = false) String startDate,
+            @RequestParam(required = false) String endDate,
+            @RequestParam(required = false) Integer month) {
+
+        if (startDate != null && !startDate.matches(DATE_PATTERN)) {
+            return ResponseEntity.badRequest()
+                    .body("{\"error\": \"Format startDate tidak valid. Gunakan format yyyy-MM-dd\"}");
+        }
+        if (endDate != null && !endDate.matches(DATE_PATTERN)) {
+            return ResponseEntity.badRequest()
+                    .body("{\"error\": \"Format endDate tidak valid. Gunakan format yyyy-MM-dd\"}");
+        }
+        if (month != null && (month < 1 || month > 12)) {
+            return ResponseEntity.badRequest()
+                    .body("{\"error\": \"Nilai month harus antara 1-12\"}");
+        }
+
         try {
-            List<BrosurRecord> data = brosurService.getData();
+            List<BrosurRecord> data = brosurService.getData(startDate, endDate, month);
             return ResponseEntity.ok(data);
         } catch (IOException e) {
             log.error("Gagal mengambil data Brosur", e);
