@@ -17,10 +17,10 @@ public class WebConfig implements WebMvcConfigurer {
     public void addCorsMappings(CorsRegistry registry) {
         registry.addMapping("/api/**")
                 .allowedOriginPatterns(
-                        "http://localhost:5173",   // Vite dev server
-                        "http://localhost:4173"    // Vite preview
-                        // TODO: Ganti dengan domain production spesifik saat deploy
-                        // Contoh: "https://dashboard-k3.vercel.app"
+                        "http://localhost:5173",        // Vite dev server
+                        "http://localhost:4173",        // Vite preview
+                        "https://*.vercel.app",         // Semua domain Vercel
+                        "https://*.up.railway.app"      // Semua domain Railway
                 )
                 .allowedMethods("GET", "POST", "OPTIONS")
                 .allowedHeaders("Authorization", "Content-Type")
