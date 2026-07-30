@@ -44,6 +44,7 @@ export async function renderMainDashboard(container) {
           <select id="dateFilter" class="filter-select" style="padding: 0.5rem 1rem; border-radius: 8px; border: 1px solid var(--color-border); background: white; font-weight: 500; cursor: pointer; outline: none; font-family: inherit;">
             <option value="all">Semua Waktu (All Time)</option>
             <option value="today">Hari Ini (Today)</option>
+            <option value="yesterday">Kemarin (Yesterday)</option>
             <option value="week">7 Hari Terakhir (Last Week)</option>
             <option value="month">30 Hari Terakhir (Last Month)</option>
           </select>
@@ -83,6 +84,10 @@ function renderContent(container, filterValue) {
     const res = aggregateByHour(filteredPsa, filteredCvv);
     chartLabels = res.labels; chartPsa = res.psaCounts; chartCvv = res.cvvCounts;
     chartTitle = "Grafik Laporan Hari Ini (Per Jam)";
+  } else if (filterValue === 'yesterday') {
+    const res = aggregateByHour(filteredPsa, filteredCvv);
+    chartLabels = res.labels; chartPsa = res.psaCounts; chartCvv = res.cvvCounts;
+    chartTitle = "Grafik Laporan Kemarin (Per Jam)";
   } else if (filterValue === 'week') {
     const res = aggregateByDayOfWeek(filteredPsa, filteredCvv);
     chartLabels = res.labels; chartPsa = res.psaCounts; chartCvv = res.cvvCounts;
@@ -331,6 +336,7 @@ function filterDataByDate(data, filterType) {
     const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
 
     if (filterType === 'today') return diffDays === 0;
+    if (filterType === 'yesterday') return diffDays === 1;
     if (filterType === 'week') return diffDays >= 0 && diffDays <= 7;
     if (filterType === 'month') return diffDays >= 0 && diffDays <= 30;
 
