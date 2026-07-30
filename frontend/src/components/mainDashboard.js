@@ -247,11 +247,14 @@ function renderContent(container, filterValue) {
     }
   };
 
-  const rankingDisplayData = allRankingData.map(group => ({
-    ...group,
-    unitName: group.unitName.replace(/CVV/g, 'CCV')
-  }));
-  renderRankingTable(document.getElementById('dashboard-ranking-container'), rankingDisplayData, handleRankingPeriodChange, currentRankingPeriod);
+  const rankingContainer = document.getElementById('dashboard-ranking-container');
+  if (rankingContainer) {
+    const rankingDisplayData = allRankingData.map(group => ({
+      ...group,
+      unitName: group.unitName.replace(/CVV/g, 'CCV')
+    }));
+    renderRankingTable(rankingContainer, rankingDisplayData, handleRankingPeriodChange, currentRankingPeriod);
+  }
   if (ccvRekapChartInstance) {
     ccvRekapChartInstance.destroy();
   }
