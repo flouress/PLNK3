@@ -4,6 +4,7 @@ import { renderDataTable } from '../components/dataTable.js';
 import { renderRankingTable } from '../components/rankingTable.js';
 import { renderTabNavigation } from '../components/tabNavigation.js';
 import { renderDateFilter } from '../components/dateFilter.js';
+import { renderRankingFilter } from '../components/rankingFilter.js';
 import { renderMainDashboard } from '../components/mainDashboard.js';
 
 const TABS = [
@@ -106,6 +107,11 @@ function renderFilterAndTable() {
       currentFilters = filters;
       loadTableData(tableContainer);
     });
+  } else if (currentTab === 'ranking') {
+    renderRankingFilter(filterContainer, currentFilters, (filters) => {
+      currentFilters = filters;
+      loadTableData(tableContainer);
+    });
   } else {
     filterContainer.innerHTML = '';
   }
@@ -146,10 +152,22 @@ async function loadTableData(container) {
       case 'ranking': {
         const data = await fetchRanking(currentFilters);
         // Ganti label "CVV" -> "CCV" hanya untuk tampilan UI
-        const displayData = data.map(group => ({
+        let displayData = data.map(group => ({
           ...group,
           unitName: group.unitName.replace(/CVV/g, 'CCV')
         }));
+        
+        // Filter by search text if available
+        if (currentFilters.search) {
+          const lowerSearch = currentFilters.search.toLowerCase();
+          displayData = displayData.map(group => ({
+            ...group,
+            rankings: group.rankings.filter(entry => 
+              entry.nama.toLowerCase().includes(lowerSearch)
+            )
+          }));
+        }
+        
         renderRankingTable(container, displayData);
         break;
       }
