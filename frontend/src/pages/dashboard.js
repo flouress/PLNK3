@@ -156,18 +156,18 @@ async function loadTableData(container) {
           ...group,
           unitName: group.unitName.replace(/CVV/g, 'CCV')
         }));
-        
+
         // Filter by search text if available
         if (currentFilters.search) {
           const lowerSearch = currentFilters.search.toLowerCase();
           displayData = displayData.map(group => ({
             ...group,
-            rankings: group.rankings.filter(entry => 
+            rankings: group.rankings.filter(entry =>
               entry.nama.toLowerCase().includes(lowerSearch)
             )
           }));
         }
-        
+
         renderRankingTable(container, displayData);
         break;
       }

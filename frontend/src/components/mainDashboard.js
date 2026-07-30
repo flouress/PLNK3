@@ -13,6 +13,7 @@ let currentRecentSearch = '';
 let typeFilters = { PSA: false, CVV: false, BROSUR: false };
 let currentSlideIndex = 0;
 let currentMonitoringMonth = new Date().getMonth();
+let currentRankingPeriod = 'all';
 
 export async function renderMainDashboard(container) {
   if (!isFetched) {
@@ -205,11 +206,35 @@ function renderContent(container, filterValue) {
   }
   barChartInstance = initBarChart(document.getElementById('barChart'), chartLabels, chartPsa, chartCvv);
 
+  const handleRankingPeriodChange = async (newPeriod) => {
+    currentRankingPeriod = newPeriod;
+    const rankingContainer = document.getElementById('dashboard-ranking-container');
+    if (!rankingContainer) return;
+
+    rankingContainer.innerHTML = '<div style="padding: 2rem; text-align: center; color: var(--color-text-muted);">Memuat data ranking...</div>';
+
+    try {
+      let filters = {};
+      if (newPeriod === 'this_month') {
+        filters.month = new Date().getMonth() + 1; // 1-12
+      }
+      allRankingData = await fetchRanking(filters);
+      const displayData = allRankingData.map(group => ({
+        ...group,
+        unitName: group.unitName.replace(/CVV/g, 'CCV')
+      }));
+      renderRankingTable(rankingContainer, displayData, handleRankingPeriodChange, currentRankingPeriod);
+    } catch (e) {
+      console.error('Failed to fetch ranking for new period:', e);
+      rankingContainer.innerHTML = '<div style="color: red; text-align: center;">Gagal memuat ranking.</div>';
+    }
+  };
+
   const rankingDisplayData = allRankingData.map(group => ({
     ...group,
     unitName: group.unitName.replace(/CVV/g, 'CCV')
   }));
-  renderRankingTable(document.getElementById('dashboard-ranking-container'), rankingDisplayData);
+  renderRankingTable(document.getElementById('dashboard-ranking-container'), rankingDisplayData, handleRankingPeriodChange, currentRankingPeriod);
 
   // Attach Event Listeners for Recent Activities
   document.getElementById('recentFilterSelect').addEventListener('change', (e) => {

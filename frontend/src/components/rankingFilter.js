@@ -32,9 +32,9 @@ export function renderRankingFilter(container, currentFilters, onApply) {
   const getFilters = () => {
     const val = document.getElementById('ranking-period').value;
     const search = document.getElementById('ranking-search').value.trim();
-    
+
     let filters = { search };
-    
+
     if (val === 'this_month') {
       const now = new Date();
       filters.month = now.getMonth() + 1;
@@ -42,17 +42,17 @@ export function renderRankingFilter(container, currentFilters, onApply) {
       const now = new Date();
       const day = now.getDay();
       const diffToMonday = now.getDate() - day + (day === 0 ? -6 : 1);
-      
+
       const startOfWeek = new Date(now);
       startOfWeek.setDate(diffToMonday);
-      
+
       const endOfWeek = new Date(startOfWeek);
       endOfWeek.setDate(startOfWeek.getDate() + 6);
-      
+
       filters.startDate = startOfWeek.toISOString().split('T')[0];
       filters.endDate = endOfWeek.toISOString().split('T')[0];
     }
-    
+
     return filters;
   };
 

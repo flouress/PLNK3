@@ -5,7 +5,7 @@
  */
 let currentLimit = 15;
 
-export function renderRankingTable(container, data) {
+export function renderRankingTable(container, data, onPeriodChange = null, currentPeriod = 'all') {
   function render() {
     if (!data || data.length === 0) {
       container.innerHTML = `
@@ -28,6 +28,14 @@ export function renderRankingTable(container, data) {
       return;
     }
 
+    const periodSelectHTML = onPeriodChange ? `
+      <label for="ranking-period-table" style="color:var(--color-text-muted); margin-left: 1rem;">Periode:</label>
+      <select id="ranking-period-table" style="padding:0.4rem; border:1px solid var(--color-border); border-radius:6px; outline:none; font-family:inherit;">
+        <option value="all" ${currentPeriod === 'all' ? 'selected' : ''}>Semua Periode</option>
+        <option value="this_month" ${currentPeriod === 'this_month' ? 'selected' : ''}>Bulan Ini</option>
+      </select>
+    ` : '';
+
     const limitSelectHTML = `
       <div style="display:flex; justify-content:flex-end; align-items:center; margin-bottom:1rem; gap:0.5rem; font-size:0.9rem;">
         <label for="ranking-limit" style="color:var(--color-text-muted);">Tampilkan:</label>
@@ -37,6 +45,7 @@ export function renderRankingTable(container, data) {
           <option value="50" ${currentLimit === 50 ? 'selected' : ''}>Top 50</option>
           <option value="all" ${currentLimit === 'all' ? 'selected' : ''}>Semua</option>
         </select>
+        ${periodSelectHTML}
       </div>
     `;
 
@@ -88,6 +97,13 @@ export function renderRankingTable(container, data) {
         const val = e.target.value;
         currentLimit = val === 'all' ? 'all' : parseInt(val, 10);
         render();
+      });
+    }
+
+    const periodSelect = container.querySelector('#ranking-period-table');
+    if (periodSelect && onPeriodChange) {
+      periodSelect.addEventListener('change', (e) => {
+        onPeriodChange(e.target.value);
       });
     }
   }
