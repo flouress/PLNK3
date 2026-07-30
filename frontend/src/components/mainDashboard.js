@@ -9,6 +9,7 @@ let allBrosurData = [];
 let allRankingData = [];
 let barChartInstance = null;
 let ccvRekapChartInstance = null;
+let brosurRekapChartInstance = null;
 let currentMainSlideIndex = 0;
 let currentRecentFilter = 'today';
 let currentRecentSearch = '';
@@ -154,10 +155,10 @@ function renderContent(container, filterValue) {
           </button>
         </div>
         
-        <div id="mainChartCarouselTrack" style="display: flex; width: 200%; transition: transform 0.3s ease; transform: translateX(-${currentMainSlideIndex * 50}%);">
+        <div id="mainChartCarouselTrack" style="display: flex; width: 300%; transition: transform 0.3s ease; transform: translateX(-${currentMainSlideIndex * 33.3333}%);">
           
           <!-- Slide 1: Main Chart -->
-          <div style="width: 50%; padding: 1rem 1.5rem; box-sizing: border-box; flex-shrink: 0; display: flex; flex-direction: column;">
+          <div style="width: 33.3333%; padding: 1rem 1.5rem; box-sizing: border-box; flex-shrink: 0; display: flex; flex-direction: column;">
             <h3 class="chart-title">${escapeHtml(chartTitle)}</h3>
             <div class="canvas-wrapper" style="flex: 1; min-height: 350px; position: relative;">
               <canvas id="barChart"></canvas>
@@ -165,10 +166,18 @@ function renderContent(container, filterValue) {
           </div>
 
           <!-- Slide 2: CCV Bagian -->
-          <div style="width: 50%; padding: 1rem 1.5rem; box-sizing: border-box; flex-shrink: 0; display: flex; flex-direction: column;">
+          <div style="width: 33.3333%; padding: 1rem 1.5rem; box-sizing: border-box; flex-shrink: 0; display: flex; flex-direction: column;">
             <h3 class="chart-title">Rekap CCV Berdasarkan Bagian</h3>
             <div class="canvas-wrapper" style="flex: 1; min-height: 350px; position: relative;">
               <canvas id="ccvRekapChart"></canvas>
+            </div>
+          </div>
+
+          <!-- Slide 3: Brosur Bidang -->
+          <div style="width: 33.3333%; padding: 1rem 1.5rem; box-sizing: border-box; flex-shrink: 0; display: flex; flex-direction: column;">
+            <h3 class="chart-title">Rekap Brosur Berdasarkan Bidang</h3>
+            <div class="canvas-wrapper" style="flex: 1; min-height: 350px; position: relative;">
+              <canvas id="brosurRekapChart"></canvas>
             </div>
           </div>
           
@@ -178,6 +187,7 @@ function renderContent(container, filterValue) {
         <div style="position: absolute; bottom: 4px; left: 0; right: 0; display: flex; justify-content: center; gap: 8px;">
           <button class="main-chart-dot" data-index="0" style="width: 8px; height: 8px; border-radius: 50%; border: none; background: ${currentMainSlideIndex === 0 ? '#3b82f6' : '#cbd5e1'}; cursor: pointer; padding: 0;"></button>
           <button class="main-chart-dot" data-index="1" style="width: 8px; height: 8px; border-radius: 50%; border: none; background: ${currentMainSlideIndex === 1 ? '#3b82f6' : '#cbd5e1'}; cursor: pointer; padding: 0;"></button>
+          <button class="main-chart-dot" data-index="2" style="width: 8px; height: 8px; border-radius: 50%; border: none; background: ${currentMainSlideIndex === 2 ? '#3b82f6' : '#cbd5e1'}; cursor: pointer; padding: 0;"></button>
         </div>
 
       </div>
@@ -261,10 +271,16 @@ function renderContent(container, filterValue) {
   const ccvBagianData = processCcvByBagian(allCvvData);
   ccvRekapChartInstance = initCcvRekapChart(document.getElementById('ccvRekapChart'), ccvBagianData.labels, ccvBagianData.datasets);
 
+  if (brosurRekapChartInstance) {
+    brosurRekapChartInstance.destroy();
+  }
+  const brosurBidangData = processBrosurByBidang(allBrosurData);
+  brosurRekapChartInstance = initCcvRekapChart(document.getElementById('brosurRekapChart'), brosurBidangData.labels, brosurBidangData.datasets);
+
   // Carousel Logic
   const updateMainCarousel = () => {
     const track = document.getElementById('mainChartCarouselTrack');
-    if (track) track.style.transform = `translateX(-${currentMainSlideIndex * 50}%)`;
+    if (track) track.style.transform = `translateX(-${currentMainSlideIndex * 33.3333}%)`;
     
     document.querySelectorAll('.main-chart-dot').forEach(d => {
       d.style.background = parseInt(d.dataset.index, 10) === currentMainSlideIndex ? '#3b82f6' : '#cbd5e1';
@@ -288,7 +304,7 @@ function renderContent(container, filterValue) {
   }
   if (btnRight) {
     btnRight.addEventListener('click', () => {
-      currentMainSlideIndex = Math.min(1, currentMainSlideIndex + 1);
+      currentMainSlideIndex = Math.min(2, currentMainSlideIndex + 1);
       updateMainCarousel();
     });
   }
@@ -561,6 +577,46 @@ function processCcvByBagian(cvvData) {
   }));
   
   return { labels: months, datasets: datasets };
+}
+
+function processBrosurByBidang(brosurData) {
+  const currentYear = new Date().getFullYear();
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+  
+  const countMap = {};
+  const bidangSet = new Set();
+  
+  brosurData.forEach(row => {
+    let raw = (row.pekerjaan || 'TIDAK DIKETAHUI').trim().toUpperCase();
+    let bidang = 'LAINNYA';
+    
+    if (raw.includes('YANTEK')) bidang = 'YANTEK';
+    else if (raw.includes('P2TL')) bidang = 'P2TL';
+    else if (raw.includes('MANBIL') || raw.includes('BACA METER') || raw.includes('BILLING')) bidang = 'MANBIL';
+    else bidang = raw;
+    
+    const d = parseD(row.tanggal);
+    if (d && d.getFullYear() === currentYear) {
+      bidangSet.add(bidang);
+      if (!countMap[bidang]) countMap[bidang] = new Array(12).fill(0);
+      countMap[bidang][d.getMonth()]++;
+    }
+  });
+  
+  const bidangArray = Array.from(bidangSet).sort();
+  const colors = [
+    '#f59e0b', '#3b82f6', '#ec4899', '#14b8a6', '#8b5cf6', 
+    '#ef4444', '#10b981', '#f97316', '#6366f1', '#06b6d4'
+  ];
+  
+  const datasets = bidangArray.map((b, i) => ({
+    label: b,
+    data: countMap[b],
+    backgroundColor: colors[i % colors.length],
+    borderRadius: 2
+  }));
+  
+  return { labels: months, datasets };
 }
 
 function initCcvRekapChart(canvas, labels, datasets) {
