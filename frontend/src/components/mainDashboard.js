@@ -11,7 +11,7 @@ let barChartInstance = null;
 let ccvRekapChartInstance = null;
 let brosurRekapChartInstance = null;
 let currentMainSlideIndex = 0;
-let currentRecentFilter = 'today';
+let currentRecentFilter = 'all';
 let currentRecentSearch = '';
 let typeFilters = { PSA: false, CVV: false, BROSUR: false };
 let currentMonitoringMonth = new Date().getMonth();
@@ -196,10 +196,11 @@ function renderContent(container, filterValue) {
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 0.5rem;">
           <h3 class="chart-title" style="margin:0;">Aktivitas Terbaru</h3>
           <select id="recentFilterSelect" style="font-size:0.8rem; padding:0.25rem; border-radius: 4px; border: 1px solid var(--color-border); outline: none;">
-            <option value="today" ${currentRecentFilter === 'today' ? 'selected' : ''}>Today</option>
-            <option value="yesterday" ${currentRecentFilter === 'yesterday' ? 'selected' : ''}>Yesterday</option>
-            <option value="week" ${currentRecentFilter === 'week' ? 'selected' : ''}>This Week</option>
-            <option value="month" ${currentRecentFilter === 'month' ? 'selected' : ''}>This Month</option>
+            <option value="all" ${currentRecentFilter === 'all' ? 'selected' : ''}>Semua Waktu</option>
+            <option value="today" ${currentRecentFilter === 'today' ? 'selected' : ''}>Hari Ini</option>
+            <option value="yesterday" ${currentRecentFilter === 'yesterday' ? 'selected' : ''}>Kemarin</option>
+            <option value="week" ${currentRecentFilter === 'week' ? 'selected' : ''}>Minggu Ini</option>
+            <option value="month" ${currentRecentFilter === 'month' ? 'selected' : ''}>Bulan Ini</option>
           </select>
         </div>
         
@@ -281,7 +282,6 @@ function renderContent(container, filterValue) {
   const updateMainCarousel = () => {
     const track = document.getElementById('mainChartCarouselTrack');
     if (track) track.style.transform = `translateX(-${currentMainSlideIndex * 33.3333}%)`;
-    
     document.querySelectorAll('.main-chart-dot').forEach(d => {
       d.style.background = parseInt(d.dataset.index, 10) === currentMainSlideIndex ? '#3b82f6' : '#cbd5e1';
     });
@@ -322,7 +322,7 @@ function renderContent(container, filterValue) {
   document.querySelectorAll('.type-filter-btn').forEach(btn => {
     btn.addEventListener('click', (e) => {
       const type = e.currentTarget.dataset.type;
-      
+
       // Toggle current filter (Multi-select)
       typeFilters[type] = !typeFilters[type];
 
@@ -358,10 +358,10 @@ function renderRecentActivities() {
 
   let combined = [];
   allPsaData.forEach(row => combined.push({ type: 'PSA', timestamp: row.timestamp || '', reporter: row.namaInspektor || 'Tidak Diketahui', unit: row.namaUnit || 'Tidak Diketahui' }));
-  allCvvData.forEach(row => combined.push({ 
-    type: 'CVV', 
-    timestamp: row.timestamp || '', 
-    reporter: row.namaObserver || 'Tidak Diketahui', 
+  allCvvData.forEach(row => combined.push({
+    type: 'CVV',
+    timestamp: row.timestamp || '',
+    reporter: row.namaObserver || 'Tidak Diketahui',
     unit: row.namaUnit || 'Tidak Diketahui',
     company: row.perusahaan || '',
     section: row.pekerjaanPadaBagian || ''
@@ -377,6 +377,7 @@ function renderRecentActivities() {
   combined = combined.filter(row => {
     const d = parseD(row.timestamp);
     if (!d) return false;
+    if (currentRecentFilter === 'all') return true;
     d.setHours(0, 0, 0, 0);
     const diffDays = Math.floor((now.getTime() - d.getTime()) / (1000 * 60 * 60 * 24));
     if (currentRecentFilter === 'today') return diffDays === 0;
@@ -393,12 +394,12 @@ function renderRecentActivities() {
 
   combined.sort((a, b) => parseD(b.timestamp) - parseD(a.timestamp));
 
-  listContainer.innerHTML = combined.slice(0, 15).map(act => {
+  listContainer.innerHTML = combined.map(act => {
     let iconSvg = '';
     let iconBg = '';
     let iconColor = '';
     let displayType = act.type === 'BROSUR' ? 'BSR' : act.type;
-    
+
     if (act.type === 'PSA') {
       iconBg = '#eff6ff'; iconColor = '#3b82f6';
       iconSvg = '<span style="font-weight:800; font-size:0.75rem; letter-spacing:0.5px;">PSA</span>';
@@ -440,20 +441,7 @@ function filterDataByDate(data, filterType) {
   return data.filter(row => {
     const rawDate = row.timestamp || row.tanggal;
     if (!rawDate) return false;
-    const datePart = rawDate.split(' ')[0];
-    let d;
-
-    if (datePart.includes('/')) {
-      const parts = datePart.split('/');
-      if (parts.length === 3) d = new Date(parts[2], parts[1] - 1, parts[0]);
-    } else if (datePart.includes('-')) {
-      const parts = datePart.split('-');
-      if (parts.length === 3) {
-        if (parts[0].length === 4) d = new Date(parts[0], parts[1] - 1, parts[2]);
-        else d = new Date(parts[2], parts[1] - 1, parts[0]);
-      }
-    }
-
+    const d = parseD(rawDate);
     if (!d || isNaN(d.getTime())) return false;
     d.setHours(0, 0, 0, 0);
     const diffDays = Math.floor((now.getTime() - d.getTime()) / (1000 * 60 * 60 * 24));
@@ -469,48 +457,59 @@ function parseD(ts) {
   if (!ts) return null;
   const parts = ts.split(/[-/ :]/);
   if (parts.length >= 3) {
-    const d = ts.includes('/') ? new Date(parts[2], parts[1]-1, parts[0]) : new Date(parts[0], parts[1]-1, parts[2]);
+    let d;
+    if (ts.includes('/')) {
+        if (!ts.includes(' ')) {
+            // Brosur: MM/DD/YYYY (no time component)
+            d = new Date(parts[2], parts[0] - 1, parts[1]);
+        } else {
+            // PSA/CCV: DD/MM/YYYY HH:MM:SS
+            d = new Date(parts[2], parts[1] - 1, parts[0], parts[3] || 0, parts[4] || 0, parts[5] || 0);
+        }
+    } else {
+        d = new Date(parts[0], parts[1] - 1, parts[2], parts[3] || 0, parts[4] || 0, parts[5] || 0);
+    }
     return isNaN(d.getTime()) ? null : d;
   }
   return null;
 }
 
 function aggregateByHour(psa, cvv) {
-  const labels = Array.from({length: 24}, (_, i) => `${i.toString().padStart(2, '0')}:00`);
+  const labels = Array.from({ length: 24 }, (_, i) => `${i.toString().padStart(2, '0')}:00`);
   const psaCounts = new Array(24).fill(0);
   const cvvCounts = new Array(24).fill(0);
-  psa.forEach(r => { const d = parseD(r.timestamp); if(d) psaCounts[d.getHours()]++; });
-  cvv.forEach(r => { const d = parseD(r.timestamp); if(d) cvvCounts[d.getHours()]++; });
+  psa.forEach(r => { const d = parseD(r.timestamp); if (d) psaCounts[d.getHours()]++; });
+  cvv.forEach(r => { const d = parseD(r.timestamp); if (d) cvvCounts[d.getHours()]++; });
   return { labels, psaCounts, cvvCounts };
 }
 
 function aggregateByDayOfWeek(psa, cvv) {
   const days = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
   const now = new Date();
-  const labels = Array.from({length: 7}, (_, i) => {
-    const d = new Date(now.getTime() - (6-i) * 86400000);
+  const labels = Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(now.getTime() - (6 - i) * 86400000);
     return days[d.getDay()];
   });
   const psaCounts = new Array(7).fill(0);
   const cvvCounts = new Array(7).fill(0);
-  psa.forEach(r => { const d = parseD(r.timestamp); if(d) { const diff = Math.floor((now - d)/86400000); if(diff>=0 && diff<7) psaCounts[6-diff]++; }});
-  cvv.forEach(r => { const d = parseD(r.timestamp); if(d) { const diff = Math.floor((now - d)/86400000); if(diff>=0 && diff<7) cvvCounts[6-diff]++; }});
+  psa.forEach(r => { const d = parseD(r.timestamp); if (d) { const diff = Math.floor((now - d) / 86400000); if (diff >= 0 && diff < 7) psaCounts[6 - diff]++; } });
+  cvv.forEach(r => { const d = parseD(r.timestamp); if (d) { const diff = Math.floor((now - d) / 86400000); if (diff >= 0 && diff < 7) cvvCounts[6 - diff]++; } });
   return { labels, psaCounts, cvvCounts };
 }
 
 function aggregateByDate(psa, cvv, daysCount) {
   const now = new Date();
-  const labels = Array.from({length: daysCount}, (_, i) => {
-    const d = new Date(now.getTime() - (daysCount-1-i) * 86400000);
+  const labels = Array.from({ length: daysCount }, (_, i) => {
+    const d = new Date(now.getTime() - (daysCount - 1 - i) * 86400000);
     return `${d.getDate().toString().padStart(2, '0')}/${(d.getMonth() + 1).toString().padStart(2, '0')}`;
   });
   const psaCounts = new Array(daysCount).fill(0);
   const cvvCounts = new Array(daysCount).fill(0);
   const process = (data, counts) => data.forEach(r => {
     const d = parseD(r.timestamp);
-    if(d) {
-      const diff = Math.floor((now - d)/86400000);
-      if(diff >= 0 && diff < daysCount) counts[daysCount - 1 - diff]++;
+    if (d) {
+      const diff = Math.floor((now - d) / 86400000);
+      if (diff >= 0 && diff < daysCount) counts[daysCount - 1 - diff]++;
     }
   });
   process(psa, psaCounts); process(cvv, cvvCounts);
@@ -522,13 +521,13 @@ function aggregateByMonthYear(psa, cvv) {
   const countMap = {};
   [...psa, ...cvv].forEach(r => {
     const d = parseD(r.timestamp);
-    if(d) {
+    if (d) {
       const label = `${months[d.getMonth()]} ${d.getFullYear()}`;
-      if(!countMap[label]) countMap[label] = { time: new Date(d.getFullYear(), d.getMonth(), 1).getTime(), psa: 0, cvv: 0 };
-      if(psa.includes(r)) countMap[label].psa++; else countMap[label].cvv++;
+      if (!countMap[label]) countMap[label] = { time: new Date(d.getFullYear(), d.getMonth(), 1).getTime(), psa: 0, cvv: 0 };
+      if (psa.includes(r)) countMap[label].psa++; else countMap[label].cvv++;
     }
   });
-  const labels = Object.keys(countMap).sort((a,b) => countMap[a].time - countMap[b].time);
+  const labels = Object.keys(countMap).sort((a, b) => countMap[a].time - countMap[b].time);
   return { labels, psaCounts: labels.map(l => countMap[l].psa), cvvCounts: labels.map(l => countMap[l].cvv) };
 }
 
@@ -549,10 +548,10 @@ function initBarChart(canvas, labels, psaData, cvvData) {
 function processCcvByBagian(cvvData) {
   const currentYear = new Date().getFullYear();
   const months = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
-  
+
   const countMap = {};
   const bagianSet = new Set();
-  
+
   cvvData.forEach(row => {
     let bagian = (row.pekerjaanPadaBagian || 'TIDAK DIKETAHUI').trim().toUpperCase();
     const d = parseD(row.timestamp);
@@ -562,20 +561,20 @@ function processCcvByBagian(cvvData) {
       countMap[bagian][d.getMonth()]++;
     }
   });
-  
+
   const bagianArray = Array.from(bagianSet).sort();
   const colors = [
-    '#3b82f6', '#22c55e', '#f59e0b', '#a855f7', '#ec4899', 
+    '#3b82f6', '#22c55e', '#f59e0b', '#a855f7', '#ec4899',
     '#14b8a6', '#f43f5e', '#6366f1', '#8b5cf6', '#d946ef', '#0ea5e9', '#84cc16'
   ];
-  
+
   const datasets = bagianArray.map((bagian, index) => ({
     label: bagian,
     data: countMap[bagian],
     backgroundColor: colors[index % colors.length],
     borderRadius: 2
   }));
-  
+
   return { labels: months, datasets: datasets };
 }
 
@@ -637,18 +636,18 @@ function initCcvRekapChart(canvas, labels, datasets) {
       labels: labels,
       datasets: datasets
     },
-    options: { 
-      responsive: true, 
-      maintainAspectRatio: false, 
-      scales: { 
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      scales: {
         x: { stacked: false },
-        y: { stacked: false, beginAtZero: true, ticks: { precision: 0 } } 
+        y: { stacked: false, beginAtZero: true, ticks: { precision: 0 } }
       },
       plugins: {
         legend: {
           position: 'right',
           labels: { font: { size: 10 }, boxWidth: 12 },
-          onHover: function(e, legendItem, legend) {
+          onHover: function (e, legendItem, legend) {
             const index = legendItem.datasetIndex;
             const ds = legend.chart.data.datasets[index];
             const total = ds.data.reduce((a, b) => a + b, 0);
@@ -656,7 +655,7 @@ function initCcvRekapChart(canvas, labels, datasets) {
             ds.label = `${ds._originalLabel} (Total: ${total})`;
             legend.chart.update();
           },
-          onLeave: function(e, legendItem, legend) {
+          onLeave: function (e, legendItem, legend) {
             const index = legendItem.datasetIndex;
             const ds = legend.chart.data.datasets[index];
             if (ds._originalLabel) {
@@ -680,7 +679,7 @@ function generateMonitoringHtml() {
   const targetUnit = 'UP3 KEBON JERUK';
   const targetMonth = currentMonitoringMonth;
   const monthNames = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
-  
+
   const isMatch = (timestamp, unit) => {
     const d = parseD(timestamp);
     return d && d.getMonth() === targetMonth && (unit || '').toUpperCase().includes(targetUnit);
@@ -696,15 +695,15 @@ function generateMonitoringHtml() {
   const psaCounts = {};
   manajemenRoles.concat(tlRoles).forEach(r => psaCounts[r] = 0);
   psaFiltered.forEach(r => {
-      let j = (r.jabatanInspektor || '').toUpperCase();
-      manajemenRoles.concat(tlRoles).forEach(role => { if(j.includes(role)) psaCounts[role]++; });
+    let j = (r.jabatanInspektor || '').toUpperCase();
+    manajemenRoles.concat(tlRoles).forEach(role => { if (j.includes(role)) psaCounts[role]++; });
   });
 
   const brosurCounts = {};
   flyerRoles.forEach(r => brosurCounts[r] = 0);
   brosurFiltered.forEach(r => {
-      let text = ((r.pekerjaan || '') + ' ' + (r.pelaksana || '')).toUpperCase();
-      flyerRoles.forEach(role => { if(text.includes(role)) brosurCounts[role]++; });
+    let text = ((r.pekerjaan || '') + ' ' + (r.pelaksana || '')).toUpperCase();
+    flyerRoles.forEach(role => { if (text.includes(role)) brosurCounts[role]++; });
   });
 
   return `
