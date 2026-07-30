@@ -555,7 +555,7 @@ function processCcvByBagian(cvvData) {
   cvvData.forEach(row => {
     let bagian = (row.pekerjaanPadaBagian || 'TIDAK DIKETAHUI').trim().toUpperCase();
     const d = parseD(row.timestamp);
-    if (d && d.getFullYear() === currentYear) {
+    if (d) {
       bagianSet.add(bagian);
       if (!countMap[bagian]) countMap[bagian] = new Array(12).fill(0);
       countMap[bagian][d.getMonth()]++;
@@ -579,7 +579,6 @@ function processCcvByBagian(cvvData) {
 }
 
 function processBrosurByBidang(brosurData) {
-  const currentYear = new Date().getFullYear();
   const allMonths = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
   
   const categories = ['YANTEK', 'P2TL', 'MANBIL'];
@@ -591,15 +590,29 @@ function processBrosurByBidang(brosurData) {
   const monthHasData = new Array(12).fill(false);
   
   brosurData.forEach(row => {
-    let raw = (row.pekerjaan || '').trim().toUpperCase();
+    // Mengecek baik di kolom pelaksana maupun pekerjaan untuk memastikan datanya tidak terlewat
+    let raw = ((row.pelaksana || '') + ' ' + (row.pekerjaan || '')).trim().toUpperCase();
     let bidang = null;
     
     if (raw.includes('YANTEK')) bidang = 'YANTEK';
     else if (raw.includes('P2TL')) bidang = 'P2TL';
     else if (raw.includes('MANBIL') || raw.includes('BACA METER') || raw.includes('BILLING')) bidang = 'MANBIL';
     
-    const d = parseD(row.tanggal);
-    if (d && d.getFullYear() === currentYear && bidang) {
+    // Format tanggal Brosur: Bulan, Tanggal, Tahun (MM/DD/YYYY atau MM-DD-YYYY)
+    let d = null;
+    if (row.tanggal) {
+      const parts = row.tanggal.split(/[-/ :T]/);
+      if (parts.length >= 3) {
+        if (parts[0].length === 4) {
+           d = new Date(parts[0], parts[1] - 1, parts[2]);
+        } else if (parts[2].length === 4) {
+           // MM, DD, YYYY
+           d = new Date(parts[2], parts[0] - 1, parts[1]);
+        }
+      }
+    }
+    
+    if (d && !isNaN(d.getTime()) && bidang) {
       countMap[bidang][d.getMonth()]++;
       monthHasData[d.getMonth()] = true;
     }
@@ -614,7 +627,14 @@ function processBrosurByBidang(brosurData) {
     }
   }
   
-  const colors = ['#3b82f6', '#10b981', '#f59e0b']; 
+  // Jika tidak ada data yang cocok sama sekali, fallback tampilkan semua bulan 
+  // agar diagram tetap muncul bentuknya dan 3 kategori tersebut tetap ada di legend.
+  if (finalLabels.length === 0) {
+    finalLabels.push(...allMonths);
+    for (let i = 0; i < 12; i++) finalIndices.push(i);
+  }
+  
+  const colors = ['#3b82f6', '#10b981', '#f59e0b']; // Biru, Hijau, Oranye
   
   const datasets = categories.map((b, i) => {
     const filteredData = finalIndices.map(idx => countMap[b][idx]);
@@ -686,7 +706,17 @@ function generateMonitoringHtml() {
   };
 
   const psaFiltered = allPsaData.filter(r => isMatch(r.timestamp, r.namaUnit));
-  const brosurFiltered = allBrosurData.filter(r => { const d = parseD(r.tanggal); return d && d.getMonth() === targetMonth; });
+  const brosurFiltered = allBrosurData.filter(r => { 
+    let d = null;
+    if (r.tanggal) {
+      const parts = r.tanggal.split(/[-/ :T]/);
+      if (parts.length >= 3) {
+        if (parts[0].length === 4) d = new Date(parts[0], parts[1]-1, parts[2]);
+        else if (parts[2].length === 4) d = new Date(parts[2], parts[0]-1, parts[1]);
+      }
+    }
+    return d && !isNaN(d.getTime()) && d.getMonth() === targetMonth; 
+  });
 
   const manajemenRoles = ['MANAGER', 'ASMAN JAR', 'ASMAN KONS', 'ASMAN TEL', 'ASMAN AGA', 'ASMAN SAR', 'ASMAN KU'];
   const tlRoles = ['TL OP', 'TL HAR', 'TL DALKON', 'TL BUNGTUS', 'TL LOG', 'TL P2TL', 'TL BACA METER', 'TL DALAPP', 'TL ME', 'TL K4L'];
@@ -695,15 +725,41 @@ function generateMonitoringHtml() {
   const psaCounts = {};
   manajemenRoles.concat(tlRoles).forEach(r => psaCounts[r] = 0);
   psaFiltered.forEach(r => {
-    let j = (r.jabatanInspektor || '').toUpperCase();
-    manajemenRoles.concat(tlRoles).forEach(role => { if (j.includes(role)) psaCounts[role]++; });
+      let j = (r.jabatanInspektor || '').toUpperCase();
+      
+      // Normalisasi sebutan jabatan agar cocok dengan kode singkatan
+      j = j.replace('TEAM LEADER', 'TL');
+      j = j.replace('ASISTEN MANAJER', 'ASMAN').replace('ASISTEN MANAGER', 'ASMAN');
+      j = j.replace('OPERASI', 'OP');
+      j = j.replace('PEMELIHARAAN', 'HAR');
+      j = j.replace('PENGENDALIAN KONSTRUKSI', 'DALKON');
+      j = j.replace('SAMBUNG PUTUS', 'BUNGTUS');
+      j = j.replace('LOGISTIK', 'LOG');
+      j = j.replace('PENGENDALIAN APP', 'DALAPP');
+      j = j.replace('K3L', 'K4L');
+      j = j.replace('JARINGAN', 'JAR').replace('KONSTRUKSI', 'KONS');
+      
+      // Normalisasi Manajemen
+      j = j.replace('TRANSAKSI ENERGI LISTRIK', 'TEL').replace('TRANSAKSI ENERGI', 'TEL');
+      j = j.replace('NIAGA', 'AGA');
+      j = j.replace('PEMASARAN', 'SAR');
+      j = j.replace('KEUANGAN DAN UMUM', 'KU').replace('KEUANGAN & UMUM', 'KU');
+      j = j.replace('MANAJER', 'MANAGER').replace('MGR', 'MANAGER');
+
+      manajemenRoles.concat(tlRoles).forEach(role => { if(j.includes(role)) psaCounts[role]++; });
   });
 
   const brosurCounts = {};
   flyerRoles.forEach(r => brosurCounts[r] = 0);
   brosurFiltered.forEach(r => {
-    let text = ((r.pekerjaan || '') + ' ' + (r.pelaksana || '')).toUpperCase();
-    flyerRoles.forEach(role => { if (text.includes(role)) brosurCounts[role]++; });
+      let text = ((r.pekerjaan || '') + ' ' + (r.pelaksana || '')).toUpperCase();
+      flyerRoles.forEach(role => { 
+        if (role === 'MANBILL' && (text.includes('MANBIL') || text.includes('BACA METER') || text.includes('BILLING'))) {
+          brosurCounts[role]++;
+        } else if (role !== 'MANBILL' && text.includes(role)) {
+          brosurCounts[role]++; 
+        }
+      });
   });
 
   return `
