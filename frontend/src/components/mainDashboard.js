@@ -546,12 +546,13 @@ function initBarChart(canvas, labels, psaData, cvvData) {
 }
 
 function processCcvByBagian(cvvData) {
-  const currentYear = new Date().getFullYear();
-  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
-
+  const allMonths = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+  
   const countMap = {};
   const bagianSet = new Set();
-
+  let minMonthIndex = 12;
+  let maxMonthIndex = -1;
+  
   cvvData.forEach(row => {
     let bagian = (row.pekerjaanPadaBagian || 'TIDAK DIKETAHUI').trim().toUpperCase();
     const d = parseD(row.timestamp);
@@ -559,23 +560,52 @@ function processCcvByBagian(cvvData) {
       bagianSet.add(bagian);
       if (!countMap[bagian]) countMap[bagian] = new Array(12).fill(0);
       countMap[bagian][d.getMonth()]++;
+      if (d.getMonth() > maxMonthIndex) maxMonthIndex = d.getMonth();
+      if (d.getMonth() < minMonthIndex) minMonthIndex = d.getMonth();
     }
   });
-
+  
+  const finalLabels = [];
+  const finalIndices = [];
+  
+  if (maxMonthIndex === -1) {
+    // Fallback jika tidak ada data sama sekali, tampilkan semua 12 bulan
+    finalLabels.push(...allMonths);
+    for (let i = 0; i < 12; i++) finalIndices.push(i);
+  } else {
+    // Tampilkan dari bulan minimum hingga bulan maksimum yang ada datanya
+    for (let i = minMonthIndex; i <= maxMonthIndex; i++) {
+      finalLabels.push(allMonths[i]);
+      finalIndices.push(i);
+    }
+  }
+  
   const bagianArray = Array.from(bagianSet).sort();
   const colors = [
-    '#3b82f6', '#22c55e', '#f59e0b', '#a855f7', '#ec4899',
+    '#3b82f6', '#22c55e', '#f59e0b', '#a855f7', '#ec4899', 
     '#14b8a6', '#f43f5e', '#6366f1', '#8b5cf6', '#d946ef', '#0ea5e9', '#84cc16'
   ];
-
-  const datasets = bagianArray.map((bagian, index) => ({
-    label: bagian,
-    data: countMap[bagian],
-    backgroundColor: colors[index % colors.length],
-    borderRadius: 2
-  }));
-
-  return { labels: months, datasets: datasets };
+  
+  const datasets = bagianArray.map((bagian, index) => {
+    const filteredData = finalIndices.map(idx => countMap[bagian][idx]);
+    return {
+      label: bagian,
+      data: filteredData,
+      backgroundColor: colors[index % colors.length],
+      borderRadius: 2
+    };
+  });
+  
+  // Fallback jika dataset kosong (menghindari crash)
+  if (datasets.length === 0) {
+    datasets.push({
+      label: 'Tidak ada data',
+      data: new Array(finalLabels.length).fill(0),
+      backgroundColor: '#cbd5e1'
+    });
+  }
+  
+  return { labels: finalLabels, datasets };
 }
 
 function processBrosurByBidang(brosurData) {
@@ -587,7 +617,8 @@ function processBrosurByBidang(brosurData) {
     'P2TL': new Array(12).fill(0),
     'MANBIL': new Array(12).fill(0)
   };
-  const monthHasData = new Array(12).fill(false);
+  let minMonthIndex = 12;
+  let maxMonthIndex = -1;
   
   brosurData.forEach(row => {
     // Mengecek baik di kolom pelaksana maupun pekerjaan untuk memastikan datanya tidak terlewat
@@ -614,24 +645,24 @@ function processBrosurByBidang(brosurData) {
     
     if (d && !isNaN(d.getTime()) && bidang) {
       countMap[bidang][d.getMonth()]++;
-      monthHasData[d.getMonth()] = true;
+      if (d.getMonth() > maxMonthIndex) maxMonthIndex = d.getMonth();
+      if (d.getMonth() < minMonthIndex) minMonthIndex = d.getMonth();
     }
   });
   
   const finalLabels = [];
   const finalIndices = [];
-  for (let i = 0; i < 12; i++) {
-    if (monthHasData[i]) {
+  
+  if (maxMonthIndex === -1) {
+    // Jika tidak ada data yang cocok sama sekali, fallback tampilkan semua bulan 
+    finalLabels.push(...allMonths);
+    for (let i = 0; i < 12; i++) finalIndices.push(i);
+  } else {
+    // Tampilkan rentang berurut dari bulan awal hingga bulan akhir
+    for (let i = minMonthIndex; i <= maxMonthIndex; i++) {
       finalLabels.push(allMonths[i]);
       finalIndices.push(i);
     }
-  }
-  
-  // Jika tidak ada data yang cocok sama sekali, fallback tampilkan semua bulan 
-  // agar diagram tetap muncul bentuknya dan 3 kategori tersebut tetap ada di legend.
-  if (finalLabels.length === 0) {
-    finalLabels.push(...allMonths);
-    for (let i = 0; i < 12; i++) finalIndices.push(i);
   }
   
   const colors = ['#3b82f6', '#10b981', '#f59e0b']; // Biru, Hijau, Oranye
