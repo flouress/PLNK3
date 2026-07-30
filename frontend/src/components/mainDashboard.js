@@ -8,10 +8,11 @@ let allCvvData = [];
 let allBrosurData = [];
 let allRankingData = [];
 let barChartInstance = null;
+let ccvRekapChartInstance = null;
+let currentMainSlideIndex = 0;
 let currentRecentFilter = 'today';
 let currentRecentSearch = '';
 let typeFilters = { PSA: false, CVV: false, BROSUR: false };
-let currentSlideIndex = 0;
 let currentMonitoringMonth = new Date().getMonth();
 let currentRankingPeriod = 'all';
 
@@ -132,54 +133,63 @@ function renderContent(container, filterValue) {
       </div>
     </div>
 
-    <!-- 12-Col Grid: Bar Chart (8) & Recent List (4) -->
     <div class="dashboard-grid-12">
-      <div class="chart-container-box col-span-8" style="position: relative; overflow: hidden; padding-bottom: 2.5rem; display: flex; flex-direction: column;">
+      <div class="chart-container-box col-span-8" style="position: relative; padding: 0; display: flex; flex-direction: column; overflow: hidden; padding-bottom: 8px;">
         
-        <div id="dashboardCarousel" style="display: flex; width: 200%; transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1); transform: translateX(${currentSlideIndex === 0 ? '0' : '-50%'});">
+        <!-- Hover Zone Left -->
+        <div style="position: absolute; left: 0; top: 0; bottom: 0; width: 60px; z-index: 10; display: flex; align-items: center; justify-content: center;"
+             onmouseover="document.getElementById('mainChartLeftArrow').style.opacity='1'"
+             onmouseout="document.getElementById('mainChartLeftArrow').style.opacity='0'">
+          <button id="mainChartLeftArrow" style="opacity:0; transition:opacity 0.2s; background:rgba(0,0,0,0.4); color:white; border:none; border-radius:50%; width:36px; height:36px; cursor:pointer; display:flex; align-items:center; justify-content:center;" onmouseover="this.style.background='rgba(0,0,0,0.6)'" onmouseout="this.style.background='rgba(0,0,0,0.4)'">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+          </button>
+        </div>
+
+        <!-- Hover Zone Right -->
+        <div style="position: absolute; right: 0; top: 0; bottom: 0; width: 60px; z-index: 10; display: flex; align-items: center; justify-content: center;"
+             onmouseover="document.getElementById('mainChartRightArrow').style.opacity='1'"
+             onmouseout="document.getElementById('mainChartRightArrow').style.opacity='0'">
+          <button id="mainChartRightArrow" style="opacity:0; transition:opacity 0.2s; background:rgba(0,0,0,0.4); color:white; border:none; border-radius:50%; width:36px; height:36px; cursor:pointer; display:flex; align-items:center; justify-content:center;" onmouseover="this.style.background='rgba(0,0,0,0.6)'" onmouseout="this.style.background='rgba(0,0,0,0.4)'">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg>
+          </button>
+        </div>
+        
+        <div id="mainChartCarouselTrack" style="display: flex; width: 200%; transition: transform 0.3s ease; transform: translateX(-${currentMainSlideIndex * 50}%);">
           
-          <!-- Slide 1: Chart -->
-          <div style="width: 50%; flex-shrink: 0; padding-right: 1rem; box-sizing: border-box;">
+          <!-- Slide 1: Main Chart -->
+          <div style="width: 50%; padding: 1rem 1.5rem; box-sizing: border-box; flex-shrink: 0; display: flex; flex-direction: column;">
             <h3 class="chart-title">${escapeHtml(chartTitle)}</h3>
-            <div class="canvas-wrapper">
+            <div class="canvas-wrapper" style="flex: 1; min-height: 350px; position: relative;">
               <canvas id="barChart"></canvas>
             </div>
           </div>
-          
-          <!-- Slide 2: Monitoring -->
-          <div style="width: 50%; flex-shrink: 0; padding-left: 1rem; box-sizing: border-box; max-height: 400px; overflow-y: auto;">
-            <div style="display:flex; justify-content:flex-end; margin-bottom:1rem;">
-              <select id="monitoringMonthSelect" style="padding: 0.4rem 0.75rem; border-radius: 8px; border: 1px solid #e2e8f0; outline: none; font-weight: 500; font-family: inherit; background: white; cursor: pointer; color: #1e293b; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
-                 ${['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'].map((m, i) => `<option value="${i}" ${currentMonitoringMonth === i ? 'selected' : ''}>Bulan: ${m}</option>`).join('')}
-              </select>
+
+          <!-- Slide 2: CCV Bagian -->
+          <div style="width: 50%; padding: 1rem 1.5rem; box-sizing: border-box; flex-shrink: 0; display: flex; flex-direction: column;">
+            <h3 class="chart-title">Rekap CCV Berdasarkan Bagian</h3>
+            <div class="canvas-wrapper" style="flex: 1; min-height: 350px; position: relative;">
+              <canvas id="ccvRekapChart"></canvas>
             </div>
-            ${generateMonitoringHtml()}
           </div>
+          
         </div>
 
         <!-- Carousel Dots -->
-        <div style="position: absolute; bottom: 1rem; left: 50%; transform: translateX(-50%); display: flex; gap: 0.5rem; z-index: 10;">
-           <button class="carousel-dot-btn" data-index="0" style="width: 12px; height: 12px; border-radius: 50%; border: none; background: ${currentSlideIndex === 0 ? '#3b82f6' : '#cbd5e1'}; cursor: pointer; transition: background 0.3s, transform 0.2s; padding:0; outline:none;" onmouseover="this.style.transform='scale(1.2)'" onmouseout="this.style.transform='scale(1)'"></button>
-           <button class="carousel-dot-btn" data-index="1" style="width: 12px; height: 12px; border-radius: 50%; border: none; background: ${currentSlideIndex === 1 ? '#3b82f6' : '#cbd5e1'}; cursor: pointer; transition: background 0.3s, transform 0.2s; padding:0; outline:none;" onmouseover="this.style.transform='scale(1.2)'" onmouseout="this.style.transform='scale(1)'"></button>
+        <div style="position: absolute; bottom: 4px; left: 0; right: 0; display: flex; justify-content: center; gap: 8px;">
+          <button class="main-chart-dot" data-index="0" style="width: 8px; height: 8px; border-radius: 50%; border: none; background: ${currentMainSlideIndex === 0 ? '#3b82f6' : '#cbd5e1'}; cursor: pointer; padding: 0;"></button>
+          <button class="main-chart-dot" data-index="1" style="width: 8px; height: 8px; border-radius: 50%; border: none; background: ${currentMainSlideIndex === 1 ? '#3b82f6' : '#cbd5e1'}; cursor: pointer; padding: 0;"></button>
         </div>
 
-        <!-- Carousel Arrows -->
-        <button class="carousel-arrow-btn" data-dir="-1" style="position: absolute; top: 50%; left: 0.5rem; transform: translateY(-50%); width: 36px; height: 36px; border-radius: 50%; background: white; border: 1px solid #e2e8f0; box-shadow: 0 2px 4px rgba(0,0,0,0.1); display: flex; align-items: center; justify-content: center; cursor: pointer; z-index: 10; color: #64748b; outline: none; transition: all 0.3s; opacity: ${currentSlideIndex === 0 ? '0.2' : '0.5'}; pointer-events: ${currentSlideIndex === 0 ? 'none' : 'auto'};" onmouseover="this.style.opacity='1'; this.style.background='#f8fafc'; this.style.color='#0f172a';" onmouseout="this.style.opacity='0.5'; this.style.background='white'; this.style.color='#64748b';">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
-        </button>
-        <button class="carousel-arrow-btn" data-dir="1" style="position: absolute; top: 50%; right: 0.5rem; transform: translateY(-50%); width: 36px; height: 36px; border-radius: 50%; background: white; border: 1px solid #e2e8f0; box-shadow: 0 2px 4px rgba(0,0,0,0.1); display: flex; align-items: center; justify-content: center; cursor: pointer; z-index: 10; color: #64748b; outline: none; transition: all 0.3s; opacity: ${currentSlideIndex === 1 ? '0.2' : '0.5'}; pointer-events: ${currentSlideIndex === 1 ? 'none' : 'auto'};" onmouseover="this.style.opacity='1'; this.style.background='#f8fafc'; this.style.color='#0f172a';" onmouseout="this.style.opacity='0.5'; this.style.background='white'; this.style.color='#64748b';">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg>
-        </button>
-        
       </div>
       
-      <div class="chart-container-box col-span-4" style="display:flex; flex-direction:column; max-height: 400px;">
+      <div class="chart-container-box col-span-4" style="display:flex; flex-direction:column; max-height: 450px; padding: 1rem;">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 0.5rem;">
           <h3 class="chart-title" style="margin:0;">Aktivitas Terbaru</h3>
           <select id="recentFilterSelect" style="font-size:0.8rem; padding:0.25rem; border-radius: 4px; border: 1px solid var(--color-border); outline: none;">
             <option value="today" ${currentRecentFilter === 'today' ? 'selected' : ''}>Today</option>
             <option value="yesterday" ${currentRecentFilter === 'yesterday' ? 'selected' : ''}>Yesterday</option>
             <option value="week" ${currentRecentFilter === 'week' ? 'selected' : ''}>This Week</option>
+            <option value="month" ${currentRecentFilter === 'month' ? 'selected' : ''}>This Month</option>
           </select>
         </div>
         
@@ -189,22 +199,28 @@ function renderContent(container, filterValue) {
           <button class="type-filter-btn" data-type="BROSUR" style="flex:1; padding: 0.35rem; border-radius: 6px; border: 1px solid ${typeFilters.BROSUR ? '#fde047' : '#e2e8f0'}; background: ${typeFilters.BROSUR ? '#fefce8' : '#f8fafc'}; color: ${typeFilters.BROSUR ? '#a16207' : '#94a3b8'}; font-size: 0.75rem; font-weight: 600; cursor: pointer; transition: all 0.2s;">BROSUR</button>
         </div>
         
-        <input type="text" id="recentSearchInput" value="${escapeHtml(currentRecentSearch)}" placeholder="Cari nama, unit, dll..." style="margin-bottom: 1rem; padding: 0.5rem; border-radius: 6px; border: 1px solid var(--color-border); width: 100%; outline: none; font-family:inherit; font-size: 0.85rem; box-sizing: border-box;" />
-        
-        <div class="recent-list" id="recent-list-content" style="flex:1; overflow-y:auto; padding-right: 0.5rem;">
+        <div style="margin-bottom: 0.5rem;">
+          <input type="text" id="recentSearchInput" value="${escapeHtml(currentRecentSearch)}" placeholder="Cari nama, unit, dll..." style="width: 100%; padding: 0.4rem 0.5rem; font-size: 0.8rem; border-radius: 4px; border: 1px solid var(--color-border); box-sizing: border-box; outline: none;" />
         </div>
+        
+        <div id="dashboardRecentActivities" style="flex:1; overflow-y:auto; padding-right: 0.5rem; display:flex; flex-direction:column; gap:0.5rem;"></div>
       </div>
     </div>
 
-    <!-- Full Width: Ranking Table -->
-    <div class="dashboard-ranking-section" style="margin-top: 2rem;">
-      <div id="dashboard-ranking-container"></div>
+    <div class="dashboard-grid-12" style="margin-top: 1.5rem;">
+      <div class="chart-container-box col-span-12" style="box-sizing: border-box; padding: 1rem;">
+        <div style="display:flex; justify-content: space-between; align-items:center; margin-bottom:1rem;">
+          <h3 class="chart-title" style="margin:0;">Monitoring</h3>
+          <select id="monitoringMonthSelect" style="padding: 0.4rem 0.75rem; border-radius: 8px; border: 1px solid #e2e8f0; outline: none; font-weight: 500; font-family: inherit; background: white; cursor: pointer; color: #1e293b; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
+             ${['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'].map((m, i) => `<option value="${i}" ${currentMonitoringMonth === i ? 'selected' : ''}>Bulan: ${m}</option>`).join('')}
+          </select>
+        </div>
+        ${generateMonitoringHtml()}
+      </div>
     </div>
   `;
 
-  if (barChartInstance) {
-    barChartInstance.destroy();
-  }
+  if (barChartInstance) barChartInstance.destroy();
   barChartInstance = initBarChart(document.getElementById('barChart'), chartLabels, chartPsa, chartCvv);
 
   const handleRankingPeriodChange = async (newPeriod) => {
@@ -236,8 +252,44 @@ function renderContent(container, filterValue) {
     unitName: group.unitName.replace(/CVV/g, 'CCV')
   }));
   renderRankingTable(document.getElementById('dashboard-ranking-container'), rankingDisplayData, handleRankingPeriodChange, currentRankingPeriod);
+  if (ccvRekapChartInstance) {
+    ccvRekapChartInstance.destroy();
+  }
+  const ccvBagianData = processCcvByBagian(allCvvData);
+  ccvRekapChartInstance = initCcvRekapChart(document.getElementById('ccvRekapChart'), ccvBagianData.labels, ccvBagianData.datasets);
 
-  // Attach Event Listeners for Recent Activities
+  // Carousel Logic
+  const updateMainCarousel = () => {
+    const track = document.getElementById('mainChartCarouselTrack');
+    if (track) track.style.transform = `translateX(-${currentMainSlideIndex * 50}%)`;
+    
+    document.querySelectorAll('.main-chart-dot').forEach(d => {
+      d.style.background = parseInt(d.dataset.index, 10) === currentMainSlideIndex ? '#3b82f6' : '#cbd5e1';
+    });
+  };
+
+  document.querySelectorAll('.main-chart-dot').forEach(dot => {
+    dot.addEventListener('click', (e) => {
+      currentMainSlideIndex = parseInt(e.currentTarget.dataset.index, 10);
+      updateMainCarousel();
+    });
+  });
+
+  const btnLeft = document.getElementById('mainChartLeftArrow');
+  const btnRight = document.getElementById('mainChartRightArrow');
+  if (btnLeft) {
+    btnLeft.addEventListener('click', () => {
+      currentMainSlideIndex = Math.max(0, currentMainSlideIndex - 1);
+      updateMainCarousel();
+    });
+  }
+  if (btnRight) {
+    btnRight.addEventListener('click', () => {
+      currentMainSlideIndex = Math.min(1, currentMainSlideIndex + 1);
+      updateMainCarousel();
+    });
+  }
+
   document.getElementById('recentFilterSelect').addEventListener('change', (e) => {
     currentRecentFilter = e.target.value;
     renderRecentActivities();
@@ -250,17 +302,12 @@ function renderContent(container, filterValue) {
 
   document.querySelectorAll('.type-filter-btn').forEach(btn => {
     btn.addEventListener('click', (e) => {
-      const type = e.target.dataset.type;
-      const isCurrentlyActive = typeFilters[type];
+      const type = e.currentTarget.dataset.type;
+      
+      // Toggle current filter (Multi-select)
+      typeFilters[type] = !typeFilters[type];
 
-      typeFilters.PSA = false;
-      typeFilters.CVV = false;
-      typeFilters.BROSUR = false;
-
-      if (!isCurrentlyActive) {
-        typeFilters[type] = true;
-      }
-
+      // Update visual styles for all buttons
       document.querySelectorAll('.type-filter-btn').forEach(b => {
         const t = b.dataset.type;
         if (typeFilters[t]) {
@@ -278,74 +325,30 @@ function renderContent(container, filterValue) {
     });
   });
 
-  const updateCarouselUI = () => {
-    const track = document.getElementById('dashboardCarousel');
-    if (track) track.style.transform = `translateX(${currentSlideIndex === 0 ? '0' : '-50%'})`;
-    
-    document.querySelectorAll('.carousel-dot-btn').forEach(d => {
-      const idx = parseInt(d.dataset.index, 10);
-      d.style.background = idx === currentSlideIndex ? '#3b82f6' : '#cbd5e1';
-    });
-    
-    const arrowPrev = document.querySelector('.carousel-arrow-btn[data-dir="-1"]');
-    const arrowNext = document.querySelector('.carousel-arrow-btn[data-dir="1"]');
-    if (arrowPrev) {
-      arrowPrev.style.opacity = currentSlideIndex === 0 ? '0.2' : '0.5';
-      arrowPrev.style.pointerEvents = currentSlideIndex === 0 ? 'none' : 'auto';
-    }
-    if (arrowNext) {
-      arrowNext.style.opacity = currentSlideIndex === 1 ? '0.2' : '0.5';
-      arrowNext.style.pointerEvents = currentSlideIndex === 1 ? 'none' : 'auto';
-    }
-  };
-
-  document.querySelectorAll('.carousel-dot-btn').forEach(btn => {
-    btn.addEventListener('click', (e) => {
-      currentSlideIndex = parseInt(e.target.dataset.index, 10);
-      updateCarouselUI();
-    });
+  document.getElementById('monitoringMonthSelect').addEventListener('change', (e) => {
+    currentMonitoringMonth = parseInt(e.target.value, 10);
+    renderContent(container, filterValue);
   });
-
-  document.querySelectorAll('.carousel-arrow-btn').forEach(btn => {
-    btn.addEventListener('click', (e) => {
-      const dir = parseInt(e.currentTarget.dataset.dir, 10);
-      let newIndex = currentSlideIndex + dir;
-      if (newIndex < 0) newIndex = 0;
-      if (newIndex > 1) newIndex = 1;
-      if (newIndex !== currentSlideIndex) {
-        currentSlideIndex = newIndex;
-        updateCarouselUI();
-      }
-    });
-  });
-
-  const monthSelect = document.getElementById('monitoringMonthSelect');
-  if (monthSelect) {
-    monthSelect.addEventListener('change', (e) => {
-      currentMonitoringMonth = parseInt(e.target.value, 10);
-      renderContent(container, filterValue);
-    });
-  }
 
   renderRecentActivities();
 }
 
 function renderRecentActivities() {
-  const listContainer = document.getElementById('recent-list-content');
+  const listContainer = document.getElementById('dashboardRecentActivities');
   if (!listContainer) return;
 
   let combined = [];
-  allPsaData.forEach(row => {
-    combined.push({ type: 'PSA', timestamp: row.timestamp || '', reporter: row.namaInspektor || 'Tidak Diketahui', unit: row.namaUnit || 'Tidak Diketahui' });
-  });
-  allCvvData.forEach(row => {
-    combined.push({ type: 'CVV', timestamp: row.timestamp || '', reporter: row.namaObserver || 'Tidak Diketahui', unit: row.namaUnit || 'Tidak Diketahui' });
-  });
-  allBrosurData.forEach(row => {
-    combined.push({ type: 'BROSUR', timestamp: row.tanggal || '', reporter: row.pelaksana || 'Tidak Diketahui', unit: row.pekerjaan || 'Tidak Diketahui' });
-  });
+  allPsaData.forEach(row => combined.push({ type: 'PSA', timestamp: row.timestamp || '', reporter: row.namaInspektor || 'Tidak Diketahui', unit: row.namaUnit || 'Tidak Diketahui' }));
+  allCvvData.forEach(row => combined.push({ 
+    type: 'CVV', 
+    timestamp: row.timestamp || '', 
+    reporter: row.namaObserver || 'Tidak Diketahui', 
+    unit: row.namaUnit || 'Tidak Diketahui',
+    company: row.perusahaan || '',
+    section: row.pekerjaanPadaBagian || ''
+  }));
+  allBrosurData.forEach(row => combined.push({ type: 'BROSUR', timestamp: row.tanggal || '', reporter: row.pelaksana || 'Tidak Diketahui', unit: row.pekerjaan || 'Tidak Diketahui' }));
 
-  // Filter by selected types first
   const isAnySelected = typeFilters.PSA || typeFilters.CVV || typeFilters.BROSUR;
   combined = combined.filter(row => isAnySelected ? typeFilters[row.type] : true);
 
@@ -353,88 +356,68 @@ function renderRecentActivities() {
   now.setHours(0, 0, 0, 0);
 
   combined = combined.filter(row => {
-    if (!row.timestamp) return false;
-    const datePart = row.timestamp.split(' ')[0];
-    let d;
-    if (datePart.includes('/')) {
-      const parts = datePart.split('/');
-      if (parts.length === 3) d = new Date(parts[2], parts[1] - 1, parts[0]);
-    } else if (datePart.includes('-')) {
-      const parts = datePart.split('-');
-      if (parts.length === 3) {
-        if (parts[0].length === 4) d = new Date(parts[0], parts[1] - 1, parts[2]);
-        else d = new Date(parts[2], parts[1] - 1, parts[0]);
-      }
-    }
-    if (!d || isNaN(d.getTime())) return false;
+    const d = parseD(row.timestamp);
+    if (!d) return false;
     d.setHours(0, 0, 0, 0);
-
-    const diffTime = now.getTime() - d.getTime();
-    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-
+    const diffDays = Math.floor((now.getTime() - d.getTime()) / (1000 * 60 * 60 * 24));
     if (currentRecentFilter === 'today') return diffDays === 0;
     if (currentRecentFilter === 'yesterday') return diffDays === 1;
     if (currentRecentFilter === 'week') return diffDays >= 0 && diffDays <= 7;
+    if (currentRecentFilter === 'month') return diffDays >= 0 && diffDays <= 30;
     return true;
   });
 
   if (currentRecentSearch) {
     const q = currentRecentSearch.toLowerCase();
-    combined = combined.filter(row =>
-      row.reporter.toLowerCase().includes(q) ||
-      row.unit.toLowerCase().includes(q) ||
-      row.type.toLowerCase().includes(q)
-    );
+    combined = combined.filter(r => r.reporter.toLowerCase().includes(q) || r.unit.toLowerCase().includes(q));
   }
 
-  combined.sort((a, b) => {
-    const parseD = (ts) => {
-      const datePart = ts.split(' ')[0];
-      if (datePart.includes('/')) {
-        const parts = datePart.split('/');
-        return new Date(parts[2], parts[1] - 1, parts[0]).getTime();
-      } else if (datePart.includes('-')) {
-        const parts = datePart.split('-');
-        if (parts[0].length === 4) return new Date(parts[0], parts[1] - 1, parts[2]).getTime();
-        return new Date(parts[2], parts[1] - 1, parts[0]).getTime();
-      }
-      return 0;
-    };
-    return parseD(b.timestamp) - parseD(a.timestamp);
-  });
+  combined.sort((a, b) => parseD(b.timestamp) - parseD(a.timestamp));
 
-  const finalData = combined.slice(0, 15);
+  listContainer.innerHTML = combined.slice(0, 15).map(act => {
+    let iconSvg = '';
+    let iconBg = '';
+    let iconColor = '';
+    let displayType = act.type === 'BROSUR' ? 'BSR' : act.type;
+    
+    if (act.type === 'PSA') {
+      iconBg = '#eff6ff'; iconColor = '#3b82f6';
+      iconSvg = '<span style="font-weight:800; font-size:0.75rem; letter-spacing:0.5px;">PSA</span>';
+    } else if (act.type === 'CVV') {
+      iconBg = '#f0fdf4'; iconColor = '#22c55e';
+      iconSvg = '<span style="font-weight:800; font-size:0.75rem; letter-spacing:0.5px;">CCV</span>';
+    } else { // BROSUR
+      iconBg = '#fffbeb'; iconColor = '#f59e0b';
+      iconSvg = '<span style="font-weight:800; font-size:0.75rem; letter-spacing:0.5px;">BSR</span>';
+    }
 
-  const listHtml = finalData.map(act => {
-    let iconClass = 'bg-blue-100 text-blue-600';
-    if (act.type === 'CVV') iconClass = 'bg-green-100 text-green-600';
-    else if (act.type === 'BROSUR') iconClass = 'bg-yellow-100 text-yellow-600';
-
-    let displayType = act.type === 'BROSUR' ? 'BRS' : act.type === 'CVV' ? 'CCV' : act.type;
-    let actionText = act.type === 'BROSUR' ? 'pekerjaan di' : `mengisi ${displayType} di`;
+    let detailsHtml = '';
+    if (act.type === 'CVV' && (act.company || act.section)) {
+      let parts = [];
+      if (act.company) parts.push(act.company);
+      if (act.section) parts.push(act.section);
+      detailsHtml = `<div style="font-size: 0.7rem; color: #64748b; margin-top: 2px;">${escapeHtml(parts.join(' - '))}</div>`;
+    }
 
     return `
-        <div class="recent-item">
-          <div class="recent-icon ${iconClass}">
-            ${displayType}
-          </div>
-          <div class="recent-content">
-            <div class="recent-title"><strong>${escapeHtml(act.reporter)}</strong> ${actionText} <strong>${escapeHtml(act.unit)}</strong></div>
-            <div class="recent-time">${escapeHtml(act.timestamp)}</div>
-          </div>
-        </div>
-      `;
-  }).join('');
-
-  listContainer.innerHTML = listHtml || '<p class="text-sm text-slate-500">Belum ada aktivitas.</p>';
+    <div style="font-size: 0.8rem; padding: 0.75rem; border-bottom: 1px solid #f1f5f9; display: flex; gap: 0.75rem; align-items: flex-start;">
+      <div style="background: ${iconBg}; color: ${iconColor}; width: 36px; height: 36px; border-radius: 8px; flex-shrink: 0; display: flex; align-items: center; justify-content: center;" title="${displayType}">
+        ${iconSvg}
+      </div>
+      <div style="flex: 1; min-width: 0;">
+        <div style="font-weight: 600; color: #0f172a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${escapeHtml(act.reporter)}</div>
+        <div style="color: #475569; font-size: 0.75rem; margin-top: 2px;">${displayType} • ${escapeHtml(act.unit)}</div>
+        ${detailsHtml}
+        <div style="font-size: 0.7rem; color: #94a3b8; margin-top: 4px;">${escapeHtml(act.timestamp)}</div>
+      </div>
+    </div>
+    `;
+  }).join('') || '<p style="font-size:0.8rem; color:#94a3b8; padding: 0.5rem;">Tidak ada aktivitas.</p>';
 }
 
 function filterDataByDate(data, filterType) {
   if (!filterType || filterType === 'all') return data;
-
-  const now = new Date();
-  now.setHours(0, 0, 0, 0);
-
+  const now = new Date(); now.setHours(0, 0, 0, 0);
   return data.filter(row => {
     const rawDate = row.timestamp || row.tanggal;
     if (!rawDate) return false;
@@ -454,153 +437,81 @@ function filterDataByDate(data, filterType) {
 
     if (!d || isNaN(d.getTime())) return false;
     d.setHours(0, 0, 0, 0);
-
-    const diffTime = now.getTime() - d.getTime();
-    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-
+    const diffDays = Math.floor((now.getTime() - d.getTime()) / (1000 * 60 * 60 * 24));
     if (filterType === 'today') return diffDays === 0;
     if (filterType === 'yesterday') return diffDays === 1;
     if (filterType === 'week') return diffDays >= 0 && diffDays <= 7;
     if (filterType === 'month') return diffDays >= 0 && diffDays <= 30;
-
     return true;
   });
 }
 
 function parseD(ts) {
   if (!ts) return null;
-  const parts = ts.split(' ');
-  const datePart = parts[0];
-  let d;
-  if (datePart.includes('/')) {
-    const p = datePart.split('/');
-    if (p.length === 3) d = new Date(p[2], p[1] - 1, p[0]);
-  } else if (datePart.includes('-')) {
-    const p = datePart.split('-');
-    if (p.length === 3) {
-      if (p[0].length === 4) d = new Date(p[0], p[1] - 1, p[2]);
-      else d = new Date(p[2], p[1] - 1, p[0]);
-    }
+  const parts = ts.split(/[-/ :]/);
+  if (parts.length >= 3) {
+    const d = ts.includes('/') ? new Date(parts[2], parts[1]-1, parts[0]) : new Date(parts[0], parts[1]-1, parts[2]);
+    return isNaN(d.getTime()) ? null : d;
   }
-  if (!d || isNaN(d.getTime())) return null;
-
-  if (parts[1]) {
-    const timeParts = parts[1].split(':');
-    if (timeParts.length >= 2) {
-      d.setHours(parseInt(timeParts[0], 10), parseInt(timeParts[1], 10), 0, 0);
-    }
-  } else {
-    d.setHours(0, 0, 0, 0);
-  }
-  return d;
+  return null;
 }
 
 function aggregateByHour(psa, cvv) {
-  const labels = [];
-  const countMap = {};
-  for (let i = 0; i < 24; i++) {
-    const label = `${i.toString().padStart(2, '0')}:00`;
-    labels.push(label);
-    countMap[label] = { psa: 0, cvv: 0 };
-  }
-
-  const process = (data, type) => {
-    data.forEach(row => {
-      const d = parseD(row.timestamp);
-      if (d) {
-        const label = `${d.getHours().toString().padStart(2, '0')}:00`;
-        if (countMap[label]) countMap[label][type]++;
-      }
-    });
-  };
-  process(psa, 'psa');
-  process(cvv, 'cvv');
-
-  return { labels, psaCounts: labels.map(l => countMap[l].psa), cvvCounts: labels.map(l => countMap[l].cvv) };
+  const labels = Array.from({length: 24}, (_, i) => `${i.toString().padStart(2, '0')}:00`);
+  const psaCounts = new Array(24).fill(0);
+  const cvvCounts = new Array(24).fill(0);
+  psa.forEach(r => { const d = parseD(r.timestamp); if(d) psaCounts[d.getHours()]++; });
+  cvv.forEach(r => { const d = parseD(r.timestamp); if(d) cvvCounts[d.getHours()]++; });
+  return { labels, psaCounts, cvvCounts };
 }
 
 function aggregateByDayOfWeek(psa, cvv) {
   const days = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
-  const labels = [];
   const now = new Date();
-  for (let i = 6; i >= 0; i--) {
-    const d = new Date(now.getTime() - i * 24 * 60 * 60 * 1000);
-    labels.push(days[d.getDay()]);
-  }
-
-  const countMap = {};
-  labels.forEach(l => countMap[l] = { psa: 0, cvv: 0 });
-
-  const process = (data, type) => {
-    data.forEach(row => {
-      const d = parseD(row.timestamp);
-      if (d) {
-        const dayName = days[d.getDay()];
-        if (countMap[dayName]) countMap[dayName][type]++;
-      }
-    });
-  };
-  process(psa, 'psa');
-  process(cvv, 'cvv');
-
-  return { labels, psaCounts: labels.map(l => countMap[l].psa), cvvCounts: labels.map(l => countMap[l].cvv) };
+  const labels = Array.from({length: 7}, (_, i) => {
+    const d = new Date(now.getTime() - (6-i) * 86400000);
+    return days[d.getDay()];
+  });
+  const psaCounts = new Array(7).fill(0);
+  const cvvCounts = new Array(7).fill(0);
+  psa.forEach(r => { const d = parseD(r.timestamp); if(d) { const diff = Math.floor((now - d)/86400000); if(diff>=0 && diff<7) psaCounts[6-diff]++; }});
+  cvv.forEach(r => { const d = parseD(r.timestamp); if(d) { const diff = Math.floor((now - d)/86400000); if(diff>=0 && diff<7) cvvCounts[6-diff]++; }});
+  return { labels, psaCounts, cvvCounts };
 }
 
 function aggregateByDate(psa, cvv, daysCount) {
-  const labels = [];
-  const countMap = {};
   const now = new Date();
-  for (let i = daysCount - 1; i >= 0; i--) {
-    const d = new Date(now.getTime() - i * 24 * 60 * 60 * 1000);
-    const label = `${d.getDate().toString().padStart(2, '0')}/${(d.getMonth() + 1).toString().padStart(2, '0')}`;
-    labels.push(label);
-    countMap[label] = { psa: 0, cvv: 0 };
-  }
-
-  const process = (data, type) => {
-    data.forEach(row => {
-      const d = parseD(row.timestamp);
-      if (d) {
-        const label = `${d.getDate().toString().padStart(2, '0')}/${(d.getMonth() + 1).toString().padStart(2, '0')}`;
-        if (countMap[label]) countMap[label][type]++;
-      }
-    });
-  };
-  process(psa, 'psa');
-  process(cvv, 'cvv');
-
-  return { labels, psaCounts: labels.map(l => countMap[l].psa), cvvCounts: labels.map(l => countMap[l].cvv) };
+  const labels = Array.from({length: daysCount}, (_, i) => {
+    const d = new Date(now.getTime() - (daysCount-1-i) * 86400000);
+    return `${d.getDate().toString().padStart(2, '0')}/${(d.getMonth() + 1).toString().padStart(2, '0')}`;
+  });
+  const psaCounts = new Array(daysCount).fill(0);
+  const cvvCounts = new Array(daysCount).fill(0);
+  const process = (data, counts) => data.forEach(r => {
+    const d = parseD(r.timestamp);
+    if(d) {
+      const diff = Math.floor((now - d)/86400000);
+      if(diff >= 0 && diff < daysCount) counts[daysCount - 1 - diff]++;
+    }
+  });
+  process(psa, psaCounts); process(cvv, cvvCounts);
+  return { labels, psaCounts, cvvCounts };
 }
 
 function aggregateByMonthYear(psa, cvv) {
   const months = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
   const countMap = {};
-
-  const process = (data, type) => {
-    data.forEach(row => {
-      const d = parseD(row.timestamp);
-      if (d) {
-        const label = `${months[d.getMonth()]} ${d.getFullYear()}`;
-        if (!countMap[label]) {
-          countMap[label] = { time: new Date(d.getFullYear(), d.getMonth(), 1).getTime(), psa: 0, cvv: 0 };
-        }
-        countMap[label][type]++;
-      }
-    });
-  };
-  process(psa, 'psa');
-  process(cvv, 'cvv');
-
-  const labels = Object.keys(countMap).sort((a, b) => countMap[a].time - countMap[b].time);
-  if (labels.length === 0) {
-    return { labels: ['Belum Ada Data'], psaCounts: [0], cvvCounts: [0] };
-  }
+  [...psa, ...cvv].forEach(r => {
+    const d = parseD(r.timestamp);
+    if(d) {
+      const label = `${months[d.getMonth()]} ${d.getFullYear()}`;
+      if(!countMap[label]) countMap[label] = { time: new Date(d.getFullYear(), d.getMonth(), 1).getTime(), psa: 0, cvv: 0 };
+      if(psa.includes(r)) countMap[label].psa++; else countMap[label].cvv++;
+    }
+  });
+  const labels = Object.keys(countMap).sort((a,b) => countMap[a].time - countMap[b].time);
   return { labels, psaCounts: labels.map(l => countMap[l].psa), cvvCounts: labels.map(l => countMap[l].cvv) };
 }
-
-
-
-
 
 function initBarChart(canvas, labels, psaData, cvvData) {
   return new Chart(canvas, {
@@ -608,38 +519,86 @@ function initBarChart(canvas, labels, psaData, cvvData) {
     data: {
       labels: labels,
       datasets: [
-        {
-          label: 'PSA',
-          data: psaData,
-          backgroundColor: 'rgba(59, 130, 246, 0.8)', // blue-500
-          borderColor: 'rgb(59, 130, 246)',
-          borderWidth: 1,
-          borderRadius: 4
-        },
-        {
-          label: 'CCV',
-          data: cvvData,
-          backgroundColor: 'rgba(34, 197, 94, 0.8)', // green-500
-          borderColor: 'rgb(34, 197, 94)',
-          borderWidth: 1,
-          borderRadius: 4
-        }
+        { label: 'PSA', data: psaData, backgroundColor: '#3b82f6', borderRadius: 4 },
+        { label: 'CCV', data: cvvData, backgroundColor: '#22c55e', borderRadius: 4 }
       ]
     },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: {
-        legend: { position: 'top' }
+    options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true } } }
+  });
+}
+
+function processCcvByBagian(cvvData) {
+  const currentYear = new Date().getFullYear();
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+  
+  const countMap = {};
+  const bagianSet = new Set();
+  
+  cvvData.forEach(row => {
+    let bagian = (row.pekerjaanPadaBagian || 'TIDAK DIKETAHUI').trim().toUpperCase();
+    const d = parseD(row.timestamp);
+    if (d && d.getFullYear() === currentYear) {
+      bagianSet.add(bagian);
+      if (!countMap[bagian]) countMap[bagian] = new Array(12).fill(0);
+      countMap[bagian][d.getMonth()]++;
+    }
+  });
+  
+  const bagianArray = Array.from(bagianSet).sort();
+  const colors = [
+    '#3b82f6', '#22c55e', '#f59e0b', '#a855f7', '#ec4899', 
+    '#14b8a6', '#f43f5e', '#6366f1', '#8b5cf6', '#d946ef', '#0ea5e9', '#84cc16'
+  ];
+  
+  const datasets = bagianArray.map((bagian, index) => ({
+    label: bagian,
+    data: countMap[bagian],
+    backgroundColor: colors[index % colors.length],
+    borderRadius: 2
+  }));
+  
+  return { labels: months, datasets: datasets };
+}
+
+function initCcvRekapChart(canvas, labels, datasets) {
+  return new Chart(canvas, {
+    type: 'bar',
+    data: {
+      labels: labels,
+      datasets: datasets
+    },
+    options: { 
+      responsive: true, 
+      maintainAspectRatio: false, 
+      scales: { 
+        x: { stacked: false },
+        y: { stacked: false, beginAtZero: true, ticks: { precision: 0 } } 
       },
-      scales: {
-        y: { beginAtZero: true, ticks: { precision: 0 } }
+      plugins: {
+        legend: {
+          position: 'right',
+          labels: { font: { size: 10 }, boxWidth: 12 },
+          onHover: function(e, legendItem, legend) {
+            const index = legendItem.datasetIndex;
+            const ds = legend.chart.data.datasets[index];
+            const total = ds.data.reduce((a, b) => a + b, 0);
+            if (!ds._originalLabel) ds._originalLabel = ds.label;
+            ds.label = `${ds._originalLabel} (Total: ${total})`;
+            legend.chart.update();
+          },
+          onLeave: function(e, legendItem, legend) {
+            const index = legendItem.datasetIndex;
+            const ds = legend.chart.data.datasets[index];
+            if (ds._originalLabel) {
+              ds.label = ds._originalLabel;
+              legend.chart.update();
+            }
+          }
+        }
       }
     }
   });
 }
-
-
 
 function escapeHtml(str) {
   const div = document.createElement('div');
@@ -651,140 +610,88 @@ function generateMonitoringHtml() {
   const targetUnit = 'UP3 KEBON JERUK';
   const targetMonth = currentMonitoringMonth;
   const monthNames = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
-  const monthName = monthNames[targetMonth];
-
-  const now = new Date();
-  const days = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
-  const currentDay = days[now.getDay()];
-  const currentDate = now.getDate();
-  const currentMonthName = monthNames[now.getMonth()];
-  const currentYear = now.getFullYear();
-
+  
   const isMatch = (timestamp, unit) => {
-    if (!timestamp) return false;
     const d = parseD(timestamp);
-    if (!d) return false;
-    if (d.getMonth() !== targetMonth) return false;
-    const unitUpper = (unit || '').toUpperCase();
-    return unitUpper.includes(targetUnit);
-  };
-
-  const isBrosurMatch = (tanggal) => {
-      if (!tanggal) return false;
-      const d = parseD(tanggal);
-      if (!d) return false;
-      return d.getMonth() === targetMonth;
+    return d && d.getMonth() === targetMonth && (unit || '').toUpperCase().includes(targetUnit);
   };
 
   const psaFiltered = allPsaData.filter(r => isMatch(r.timestamp, r.namaUnit));
-  const cvvFiltered = allCvvData.filter(r => isMatch(r.timestamp, r.namaUnit));
-  const brosurFiltered = allBrosurData.filter(r => isBrosurMatch(r.tanggal));
+  const brosurFiltered = allBrosurData.filter(r => { const d = parseD(r.tanggal); return d && d.getMonth() === targetMonth; });
 
   const manajemenRoles = ['MANAGER', 'ASMAN JAR', 'ASMAN KONS', 'ASMAN TEL', 'ASMAN AGA', 'ASMAN SAR', 'ASMAN KU'];
   const tlRoles = ['TL OP', 'TL HAR', 'TL DALKON', 'TL BUNGTUS', 'TL LOG', 'TL P2TL', 'TL BACA METER', 'TL DALAPP', 'TL ME', 'TL K4L'];
   const flyerRoles = ['YANTEK', 'MANBILL', 'P2TL'];
-  const ccvRoles = ['YANTEK', 'MANBILL', 'P2TL', 'PENGAWAS'];
 
   const psaCounts = {};
   manajemenRoles.concat(tlRoles).forEach(r => psaCounts[r] = 0);
-  
-  const jabatanMapping = {
-    'MANAGER': ['MANAGER UP3/ UP2D', 'MANAGER UP3/UP2D', 'MANAGER'],
-    'ASMAN JAR': ['ASMAN JARINGAN'],
-    'ASMAN KONS': ['ASMAN KONSTRUKSI'],
-    'ASMAN TEL': ['ASMAN TRANSAKSI ENERGI LISTRIK'],
-    'ASMAN AGA': ['ASMAN NIAGA'],
-    'ASMAN SAR': ['ASMAN PEMASARAN'],
-    'ASMAN KU': ['ASMAN KEUANGAN DAN UMUM'],
-    'TL OP': ['TEAM LEADER OPERASI', 'TL OPERASI'],
-    'TL HAR': ['TEAM LEADER PEMELIHARAAN', 'TL PEMELIHARAAN'],
-    'TL DALKON': ['TEAM LEADER PENGENDALIAN KONSTRUKSI', 'TL PENGENDALIAN KONSTRUKSI', 'TEAM LEADER DALKON'],
-    'TL BUNGTUS': ['TEAM LEADER SAMBUNG PUTUS', 'TEAM LEADER BUNGTUS'],
-    'TL LOG': ['TEAM LEADER LOGISTIK'],
-    'TL P2TL': ['TEAM LEADER P2TL'],
-    'TL BACA METER': ['TEAM LEADER BACA METER'],
-    'TL DALAPP': ['TEAM LEADER DALAPP'],
-    'TL ME': ['TEAM LEADER ME', 'TEAM LEADER MANAJEMEN ENERGI'],
-    'TL K4L': ['TEAM LEADER K3L', 'TEAM LEADER K4L']
-  };
-
   psaFiltered.forEach(r => {
       let j = (r.jabatanInspektor || '').toUpperCase();
-      for (const role of manajemenRoles.concat(tlRoles)) {
-          const mappedNames = jabatanMapping[role] || [];
-          const matched = mappedNames.some(name => j.includes(name) || name.includes(j));
-          if (matched || j.includes(role)) {
-              psaCounts[role]++;
-              break;
-          }
-      }
+      manajemenRoles.concat(tlRoles).forEach(role => { if(j.includes(role)) psaCounts[role]++; });
   });
 
   const brosurCounts = {};
   flyerRoles.forEach(r => brosurCounts[r] = 0);
   brosurFiltered.forEach(r => {
       let text = ((r.pekerjaan || '') + ' ' + (r.pelaksana || '')).toUpperCase();
-      for (const role of flyerRoles) {
-          if (text.includes(role)) {
-              brosurCounts[role]++;
-              break;
-          }
-      }
-  });
-
-  const cvvCounts = {};
-  ccvRoles.forEach(r => cvvCounts[r] = 0);
-  cvvFiltered.forEach(r => {
-      let text = ((r.pekerjaanPadaBagian || '') + ' ' + (r.jabatanObserver || '')).toUpperCase();
-      for (const role of ccvRoles) {
-          if (text.includes(role)) {
-              cvvCounts[role]++;
-              break;
-          }
-      }
+      flyerRoles.forEach(role => { if(text.includes(role)) brosurCounts[role]++; });
   });
 
   return `
-    <div style="font-family: inherit; color: #334155; padding: 1.5rem; border-radius: 12px; background: white; border: 1px solid #e2e8f0; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05), 0 2px 4px -1px rgba(0,0,0,0.03);">
-      <div style="display:flex; justify-content:space-between; align-items:flex-end; border-bottom: 2px solid #e2e8f0; padding-bottom: 1rem; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem;">
-        <div>
-          <h2 style="font-size:1.25rem; font-weight:700; margin: 0 0 0.25rem 0; color: #0f172a;">Monitoring K3 UP3 Kebon Jeruk</h2>
-          <div style="font-size:0.875rem; color: #64748b; margin: 0;">${currentDay}, ${currentDate} ${currentMonthName} ${currentYear}</div>
-        </div>
-        <h3 style="font-size:0.875rem; font-weight:700; text-transform:uppercase; margin: 0; color: #2563eb; background: #eff6ff; padding: 0.5rem 1rem; border-radius: 9999px; border: 1px solid #bfdbfe;">PERIODE ${monthName}</h3>
-      </div>
-      
+    <div style="font-family: inherit; color: #334155;">
       <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1.5rem;">
-          <div>
-             <h4 style="font-weight:700; font-size:1rem; margin-top:0; margin-bottom:1rem; color: #0f172a; display:flex; align-items:center; gap:0.5rem;"><span style="display:inline-block; width:10px; height:10px; background:#3b82f6; border-radius:50%;"></span> Manajemen</h4>
-             <ul style="list-style: none; margin: 0; padding: 0; display:flex; flex-direction:column; gap:0.5rem;">
+          
+          <!-- Manajemen Card -->
+          <div style="background: white; border-radius: 12px; border: 1px solid #e2e8f0; padding: 1.25rem; box-shadow: 0 1px 2px rgba(0,0,0,0.02);">
+             <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 1rem;">
+                <span style="display:inline-block; width:8px; height:8px; background:#3b82f6; border-radius:50%;"></span>
+                <h4 style="font-weight: 600; font-size: 0.95rem; margin: 0; color: #0f172a;">Manajemen</h4>
+             </div>
+             <ul style="list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.25rem;">
                 ${manajemenRoles.map(r => `
-                  <li style="display:flex; justify-content:space-between; align-items:center; font-size: 0.875rem; padding: 0.5rem 0.75rem; background: #f8fafc; border-radius: 8px; border: 1px solid #f1f5f9; transition: transform 0.2s, box-shadow 0.2s;" onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 2px 4px rgba(0,0,0,0.05)';" onmouseout="this.style.transform='none'; this.style.boxShadow='none';">
-                    <span style="color:#475569; font-weight:500;">${r}</span>
-                    <strong style="background:#e2e8f0; padding:2px 8px; border-radius:12px; color:#0f172a; font-size: 0.8rem;">${psaCounts[r]}</strong>
+                  <li style="display:flex; justify-content:space-between; align-items:center; font-size: 0.8rem; padding: 0.4rem 0; border-bottom: 1px solid #f8fafc;">
+                    <span style="color:#475569;">${r}</span>
+                    <strong style="color: ${psaCounts[r] > 0 ? '#2563eb' : '#94a3b8'}; background: ${psaCounts[r] > 0 ? '#eff6ff' : 'transparent'}; padding: 0.15rem 0.4rem; border-radius: 4px; font-weight: 600;">
+                        ${psaCounts[r]}
+                    </strong>
                   </li>`).join('')}
              </ul>
           </div>
-          <div>
-             <h4 style="font-weight:700; font-size:1rem; margin-top:0; margin-bottom:1rem; color: #0f172a; display:flex; align-items:center; gap:0.5rem;"><span style="display:inline-block; width:10px; height:10px; background:#8b5cf6; border-radius:50%;"></span> Team Leader</h4>
-             <ul style="list-style: none; margin: 0; padding: 0; display:flex; flex-direction:column; gap:0.5rem;">
+
+          <!-- Team Leader Card -->
+          <div style="background: white; border-radius: 12px; border: 1px solid #e2e8f0; padding: 1.25rem; box-shadow: 0 1px 2px rgba(0,0,0,0.02);">
+             <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 1rem;">
+                <span style="display:inline-block; width:8px; height:8px; background:#8b5cf6; border-radius:50%;"></span>
+                <h4 style="font-weight: 600; font-size: 0.95rem; margin: 0; color: #0f172a;">Team Leader</h4>
+             </div>
+             <ul style="list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.25rem;">
                 ${tlRoles.map(r => `
-                  <li style="display:flex; justify-content:space-between; align-items:center; font-size: 0.875rem; padding: 0.5rem 0.75rem; background: #f8fafc; border-radius: 8px; border: 1px solid #f1f5f9; transition: transform 0.2s, box-shadow 0.2s;" onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 2px 4px rgba(0,0,0,0.05)';" onmouseout="this.style.transform='none'; this.style.boxShadow='none';">
-                    <span style="color:#475569; font-weight:500;">${r}</span>
-                    <strong style="background:#e2e8f0; padding:2px 8px; border-radius:12px; color:#0f172a; font-size: 0.8rem;">${psaCounts[r]}</strong>
+                  <li style="display:flex; justify-content:space-between; align-items:center; font-size: 0.8rem; padding: 0.4rem 0; border-bottom: 1px solid #f8fafc;">
+                    <span style="color:#475569;">${r}</span>
+                    <strong style="color: ${psaCounts[r] > 0 ? '#7c3aed' : '#94a3b8'}; background: ${psaCounts[r] > 0 ? '#f5f3ff' : 'transparent'}; padding: 0.15rem 0.4rem; border-radius: 4px; font-weight: 600;">
+                        ${psaCounts[r]}
+                    </strong>
                   </li>`).join('')}
              </ul>
           </div>
-          <div>
-             <h4 style="font-weight:700; font-size:1rem; margin-top:0; margin-bottom:1rem; color: #0f172a; display:flex; align-items:center; gap:0.5rem;"><span style="display:inline-block; width:10px; height:10px; background:#eab308; border-radius:50%;"></span> Flyer K3</h4>
-             <ul style="list-style: none; margin: 0; padding: 0; display:flex; flex-direction:column; gap:0.5rem;">
+
+          <!-- Flyer K3 Card -->
+          <div style="background: white; border-radius: 12px; border: 1px solid #e2e8f0; padding: 1.25rem; box-shadow: 0 1px 2px rgba(0,0,0,0.02);">
+             <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 1rem;">
+                <span style="display:inline-block; width:8px; height:8px; background:#f59e0b; border-radius:50%;"></span>
+                <h4 style="font-weight: 600; font-size: 0.95rem; margin: 0; color: #0f172a;">Flyer K3</h4>
+             </div>
+             <ul style="list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.25rem;">
                 ${flyerRoles.map(r => `
-                  <li style="display:flex; justify-content:space-between; align-items:center; font-size: 0.875rem; padding: 0.5rem 0.75rem; background: #f8fafc; border-radius: 8px; border: 1px solid #f1f5f9; transition: transform 0.2s, box-shadow 0.2s;" onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 2px 4px rgba(0,0,0,0.05)';" onmouseout="this.style.transform='none'; this.style.boxShadow='none';">
-                    <span style="color:#475569; font-weight:500;">${r}</span>
-                    <strong style="background:#e2e8f0; padding:2px 8px; border-radius:12px; color:#0f172a; font-size: 0.8rem;">${brosurCounts[r]}</strong>
+                  <li style="display:flex; justify-content:space-between; align-items:center; font-size: 0.8rem; padding: 0.4rem 0; border-bottom: 1px solid #f8fafc;">
+                    <span style="color:#475569;">${r}</span>
+                    <strong style="color: ${brosurCounts[r] > 0 ? '#d97706' : '#94a3b8'}; background: ${brosurCounts[r] > 0 ? '#fffbeb' : 'transparent'}; padding: 0.15rem 0.4rem; border-radius: 4px; font-weight: 600;">
+                        ${brosurCounts[r]}
+                    </strong>
                   </li>`).join('')}
              </ul>
           </div>
+
       </div>
     </div>
   `;
