@@ -10,7 +10,7 @@ let allRankingData = [];
 let barChartInstance = null;
 let currentRecentFilter = 'today';
 let currentRecentSearch = '';
-let typeFilters = { PSA: true, CVV: true, BROSUR: true };
+let typeFilters = { PSA: false, CVV: false, BROSUR: false };
 
 export async function renderMainDashboard(container) {
   if (!isFetched) {
@@ -148,9 +148,9 @@ function renderContent(container, filterValue) {
         </div>
         
         <div style="display:flex; gap: 0.5rem; margin-bottom: 0.75rem;" id="recent-type-filters">
-          <button class="type-filter-btn" data-type="PSA" style="flex:1; padding: 0.35rem; border-radius: 6px; border: 1px solid #bfdbfe; background: ${typeFilters.PSA ? '#eff6ff' : '#f8fafc'}; color: ${typeFilters.PSA ? '#1d4ed8' : '#94a3b8'}; font-size: 0.75rem; font-weight: 600; cursor: pointer; transition: all 0.2s;">PSA</button>
-          <button class="type-filter-btn" data-type="CVV" style="flex:1; padding: 0.35rem; border-radius: 6px; border: 1px solid #bbf7d0; background: ${typeFilters.CVV ? '#f0fdf4' : '#f8fafc'}; color: ${typeFilters.CVV ? '#15803d' : '#94a3b8'}; font-size: 0.75rem; font-weight: 600; cursor: pointer; transition: all 0.2s;">CCV</button>
-          <button class="type-filter-btn" data-type="BROSUR" style="flex:1; padding: 0.35rem; border-radius: 6px; border: 1px solid #fde047; background: ${typeFilters.BROSUR ? '#fefce8' : '#f8fafc'}; color: ${typeFilters.BROSUR ? '#a16207' : '#94a3b8'}; font-size: 0.75rem; font-weight: 600; cursor: pointer; transition: all 0.2s;">BROSUR</button>
+          <button class="type-filter-btn" data-type="PSA" style="flex:1; padding: 0.35rem; border-radius: 6px; border: 1px solid ${typeFilters.PSA ? '#bfdbfe' : '#e2e8f0'}; background: ${typeFilters.PSA ? '#eff6ff' : '#f8fafc'}; color: ${typeFilters.PSA ? '#1d4ed8' : '#94a3b8'}; font-size: 0.75rem; font-weight: 600; cursor: pointer; transition: all 0.2s;">PSA</button>
+          <button class="type-filter-btn" data-type="CVV" style="flex:1; padding: 0.35rem; border-radius: 6px; border: 1px solid ${typeFilters.CVV ? '#bbf7d0' : '#e2e8f0'}; background: ${typeFilters.CVV ? '#f0fdf4' : '#f8fafc'}; color: ${typeFilters.CVV ? '#15803d' : '#94a3b8'}; font-size: 0.75rem; font-weight: 600; cursor: pointer; transition: all 0.2s;">CCV</button>
+          <button class="type-filter-btn" data-type="BROSUR" style="flex:1; padding: 0.35rem; border-radius: 6px; border: 1px solid ${typeFilters.BROSUR ? '#fde047' : '#e2e8f0'}; background: ${typeFilters.BROSUR ? '#fefce8' : '#f8fafc'}; color: ${typeFilters.BROSUR ? '#a16207' : '#94a3b8'}; font-size: 0.75rem; font-weight: 600; cursor: pointer; transition: all 0.2s;">BROSUR</button>
         </div>
         
         <input type="text" id="recentSearchInput" value="${escapeHtml(currentRecentSearch)}" placeholder="Cari nama, unit, dll..." style="margin-bottom: 1rem; padding: 0.5rem; border-radius: 6px; border: 1px solid var(--color-border); width: 100%; outline: none; font-family:inherit; font-size: 0.85rem; box-sizing: border-box;" />
@@ -191,16 +191,28 @@ function renderContent(container, filterValue) {
   document.querySelectorAll('.type-filter-btn').forEach(btn => {
     btn.addEventListener('click', (e) => {
       const type = e.target.dataset.type;
-      typeFilters[type] = !typeFilters[type];
+      const isCurrentlyActive = typeFilters[type];
 
-      if (typeFilters[type]) {
-        if (type === 'PSA') { e.target.style.background = '#eff6ff'; e.target.style.color = '#1d4ed8'; }
-        if (type === 'CVV') { e.target.style.background = '#f0fdf4'; e.target.style.color = '#15803d'; }
-        if (type === 'BROSUR') { e.target.style.background = '#fefce8'; e.target.style.color = '#a16207'; }
-      } else {
-        e.target.style.background = '#f8fafc';
-        e.target.style.color = '#94a3b8';
+      typeFilters.PSA = false;
+      typeFilters.CVV = false;
+      typeFilters.BROSUR = false;
+
+      if (!isCurrentlyActive) {
+        typeFilters[type] = true;
       }
+
+      document.querySelectorAll('.type-filter-btn').forEach(b => {
+        const t = b.dataset.type;
+        if (typeFilters[t]) {
+          if (t === 'PSA') { b.style.background = '#eff6ff'; b.style.color = '#1d4ed8'; b.style.borderColor = '#bfdbfe'; }
+          if (t === 'CVV') { b.style.background = '#f0fdf4'; b.style.color = '#15803d'; b.style.borderColor = '#bbf7d0'; }
+          if (t === 'BROSUR') { b.style.background = '#fefce8'; b.style.color = '#a16207'; b.style.borderColor = '#fde047'; }
+        } else {
+          b.style.background = '#f8fafc';
+          b.style.color = '#94a3b8';
+          b.style.borderColor = '#e2e8f0';
+        }
+      });
 
       renderRecentActivities();
     });
@@ -225,7 +237,8 @@ function renderRecentActivities() {
   });
 
   // Filter by selected types first
-  combined = combined.filter(row => typeFilters[row.type]);
+  const isAnySelected = typeFilters.PSA || typeFilters.CVV || typeFilters.BROSUR;
+  combined = combined.filter(row => isAnySelected ? typeFilters[row.type] : true);
 
   const now = new Date();
   now.setHours(0, 0, 0, 0);
@@ -288,8 +301,8 @@ function renderRecentActivities() {
     if (act.type === 'CVV') iconClass = 'bg-green-100 text-green-600';
     else if (act.type === 'BROSUR') iconClass = 'bg-yellow-100 text-yellow-600';
 
-    let actionText = act.type === 'BROSUR' ? 'pekerjaan di' : 'melaporkan temuan di';
     let displayType = act.type === 'BROSUR' ? 'BRS' : act.type === 'CVV' ? 'CCV' : act.type;
+    let actionText = act.type === 'BROSUR' ? 'pekerjaan di' : `mengisi ${displayType} di`;
 
     return `
         <div class="recent-item">
