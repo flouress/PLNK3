@@ -51,8 +51,11 @@ export function renderDataTable(container, title, columns, data) {
       }
       
       // Column filters
-      for (const [key, val] of Object.entries(columnFilters)) {
-         if (val && (row[key] || '').toString() !== val) return false;
+      for (const [key, selectedVals] of Object.entries(columnFilters)) {
+         if (selectedVals && selectedVals.length > 0) {
+             const rowVal = (row[key] || '').toString();
+             if (!selectedVals.includes(rowVal)) return false;
+         }
       }
       
       return true;
@@ -247,7 +250,7 @@ export function renderDataTable(container, title, columns, data) {
 
     toolbarContainer.innerHTML = `
        <input type="text" id="dt-search" value="${escapeHtml(globalSearch)}" placeholder="Cari data..." style="flex:1; padding: 0.4rem 0.75rem; border: 1px solid var(--color-border); border-radius: 6px; outline:none; font-family:inherit; min-width:150px; box-sizing: border-box;" />
-       <button id="dt-filter-btn" style="padding: 0.4rem 0.75rem; border: 1px solid var(--color-border); border-radius: 6px; background: ${Object.values(columnFilters).some(v => v) ? 'var(--color-primary)' : 'white'}; color: ${Object.values(columnFilters).some(v => v) ? 'white' : 'var(--color-text)'}; cursor:pointer; display:flex; align-items:center; gap:4px; font-family:inherit;">
+       <button id="dt-filter-btn" style="padding: 0.4rem 0.75rem; border: 1px solid var(--color-border); border-radius: 6px; background: ${Object.values(columnFilters).some(v => v && v.length > 0) ? 'var(--color-primary)' : 'white'}; color: ${Object.values(columnFilters).some(v => v && v.length > 0) ? 'white' : 'var(--color-text)'}; cursor:pointer; display:flex; align-items:center; gap:4px; font-family:inherit;">
          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon></svg>
          Filter
        </button>
@@ -258,16 +261,22 @@ export function renderDataTable(container, title, columns, data) {
             
             <div style="max-height:300px; overflow-y:auto; padding-right:0.5rem;">
                 ${columns.map(col => {
+                    if (col.key.toLowerCase() === 'timestamp' || col.key.toLowerCase() === 'tanggal') return '';
+                    
                     const uniqueVals = [...new Set(data.map(r => (r[col.key] || '').toString().trim()).filter(Boolean))].sort();
                     if (uniqueVals.length === 0) return '';
                     
                     return `
                       <div style="margin-bottom:0.75rem;">
-                         <label style="display:block; font-size:0.75rem; color:var(--color-text-muted); margin-bottom:0.25rem;">${col.label}</label>
-                         <select class="dt-col-filter" data-key="${col.key}" style="width:100%; padding:0.4rem; border:1px solid var(--color-border); border-radius:4px; font-size:0.8rem; outline:none; font-family:inherit; box-sizing: border-box;">
-                           <option value="">Semua</option>
-                           ${uniqueVals.map(val => `<option value="${escapeHtml(val)}" ${columnFilters[col.key] === val ? 'selected' : ''}>${escapeHtml(val)}</option>`).join('')}
-                         </select>
+                         <label style="display:block; font-size:0.75rem; color:var(--color-text-muted); margin-bottom:0.25rem; font-weight: 500;">${col.label}</label>
+                         <div style="max-height: 140px; overflow-y: auto; border: 1px solid var(--color-border); border-radius: 4px; padding: 0.4rem; background: white;">
+                           ${uniqueVals.map(val => `
+                             <label style="display: flex; align-items: flex-start; gap: 0.4rem; font-size: 0.8rem; cursor: pointer; padding: 0.25rem 0; border-bottom: 1px solid #f9f9f9;">
+                               <input type="checkbox" class="dt-col-filter-cb" data-key="${col.key}" value="${escapeHtml(val)}" ${(columnFilters[col.key] || []).includes(val) ? 'checked' : ''} style="margin-top: 2px; cursor: pointer;" />
+                               <span style="word-break: break-word;">${escapeHtml(val)}</span>
+                             </label>
+                           `).join('')}
+                         </div>
                       </div>
                     `;
                 }).join('')}
@@ -307,9 +316,17 @@ export function renderDataTable(container, title, columns, data) {
     }
     
     if (isFilterPopupOpen) {
-        toolbarContainer.querySelectorAll('.dt-col-filter').forEach(select => {
-            select.addEventListener('change', (e) => {
-                columnFilters[e.target.dataset.key] = e.target.value;
+        toolbarContainer.querySelectorAll('.dt-col-filter-cb').forEach(cb => {
+            cb.addEventListener('change', (e) => {
+                const key = e.target.dataset.key;
+                const val = e.target.value;
+                if (!columnFilters[key]) columnFilters[key] = [];
+                
+                if (e.target.checked) {
+                    if (!columnFilters[key].includes(val)) columnFilters[key].push(val);
+                } else {
+                    columnFilters[key] = columnFilters[key].filter(v => v !== val);
+                }
             });
         });
         
