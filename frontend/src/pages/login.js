@@ -11,10 +11,8 @@ export function renderLogin(container, onLoginSuccess) {
     <div class="login-container">
       <div class="login-card">
       <div class="login-logo">
-        <div class="icon">
-          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-blue-500">
-            <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
-          </svg>
+        <div class="icon" style="background: transparent; box-shadow: none;">
+          <img src="/images.jpg" alt="Logo PLN" style="width: 50px; height: 50px; border-radius: 8px; object-fit: contain;" />
         </div>
         <h1>Dashboard <span class="highlight">K3</span></h1>
           <p>PLN UP3 Kebon Jeruk</p>
