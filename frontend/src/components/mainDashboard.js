@@ -80,6 +80,7 @@ export async function renderMainDashboard(container) {
 function renderContent(container, filterValue) {
   const filteredPsa = filterDataByDate(allPsaData, filterValue);
   const filteredCvv = filterDataByDate(allCvvData, filterValue);
+  const filteredBrosur = filterDataByDate(allBrosurData, filterValue);
 
   let chartLabels, chartPsa, chartCvv, chartTitle;
 
@@ -122,7 +123,7 @@ function renderContent(container, filterValue) {
         <div class="summary-label">Total Laporan CCV</div>
       </div>
       <div class="summary-card">
-        <div class="summary-value text-yellow-500" style="color: #eab308;">${allBrosurData.length}</div>
+        <div class="summary-value text-yellow-500" style="color: #eab308;">${filteredBrosur.length}</div>
         <div class="summary-label">Total Brosur</div>
       </div>
       <div class="summary-card">
@@ -435,8 +436,9 @@ function filterDataByDate(data, filterType) {
   now.setHours(0, 0, 0, 0);
 
   return data.filter(row => {
-    if (!row.timestamp) return false;
-    const datePart = row.timestamp.split(' ')[0];
+    const rawDate = row.timestamp || row.tanggal;
+    if (!rawDate) return false;
+    const datePart = rawDate.split(' ')[0];
     let d;
 
     if (datePart.includes('/')) {
