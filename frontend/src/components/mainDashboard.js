@@ -581,42 +581,53 @@ function processCcvByBagian(cvvData) {
 
 function processBrosurByBidang(brosurData) {
   const currentYear = new Date().getFullYear();
-  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+  const allMonths = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
   
-  const countMap = {};
-  const bidangSet = new Set();
+  const categories = ['YANTEK', 'P2TL', 'MANBIL'];
+  const countMap = {
+    'YANTEK': new Array(12).fill(0),
+    'P2TL': new Array(12).fill(0),
+    'MANBIL': new Array(12).fill(0)
+  };
+  const monthHasData = new Array(12).fill(false);
   
   brosurData.forEach(row => {
-    let raw = (row.pekerjaan || 'TIDAK DIKETAHUI').trim().toUpperCase();
-    let bidang = 'LAINNYA';
+    let raw = (row.pekerjaan || '').trim().toUpperCase();
+    let bidang = null;
     
     if (raw.includes('YANTEK')) bidang = 'YANTEK';
     else if (raw.includes('P2TL')) bidang = 'P2TL';
     else if (raw.includes('MANBIL') || raw.includes('BACA METER') || raw.includes('BILLING')) bidang = 'MANBIL';
-    else bidang = raw;
     
     const d = parseD(row.tanggal);
-    if (d && d.getFullYear() === currentYear) {
-      bidangSet.add(bidang);
-      if (!countMap[bidang]) countMap[bidang] = new Array(12).fill(0);
+    if (d && d.getFullYear() === currentYear && bidang) {
       countMap[bidang][d.getMonth()]++;
+      monthHasData[d.getMonth()] = true;
     }
   });
   
-  const bidangArray = Array.from(bidangSet).sort();
-  const colors = [
-    '#f59e0b', '#3b82f6', '#ec4899', '#14b8a6', '#8b5cf6', 
-    '#ef4444', '#10b981', '#f97316', '#6366f1', '#06b6d4'
-  ];
+  const finalLabels = [];
+  const finalIndices = [];
+  for (let i = 0; i < 12; i++) {
+    if (monthHasData[i]) {
+      finalLabels.push(allMonths[i]);
+      finalIndices.push(i);
+    }
+  }
   
-  const datasets = bidangArray.map((b, i) => ({
-    label: b,
-    data: countMap[b],
-    backgroundColor: colors[i % colors.length],
-    borderRadius: 2
-  }));
+  const colors = ['#3b82f6', '#10b981', '#f59e0b']; 
   
-  return { labels: months, datasets };
+  const datasets = categories.map((b, i) => {
+    const filteredData = finalIndices.map(idx => countMap[b][idx]);
+    return {
+      label: b,
+      data: filteredData,
+      backgroundColor: colors[i % colors.length],
+      borderRadius: 2
+    };
+  });
+  
+  return { labels: finalLabels, datasets };
 }
 
 function initCcvRekapChart(canvas, labels, datasets) {
