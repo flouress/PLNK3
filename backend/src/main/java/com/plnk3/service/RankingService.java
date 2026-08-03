@@ -22,10 +22,10 @@ public class RankingService {
         this.brosurService = brosurService;
     }
 
-    public List<RankingGroup> getData(String startDate, String endDate, Integer month) throws IOException {
-        List<PsaRecord> psaData = psaService.getData(startDate, endDate, month);
-        List<CvvRecord> cvvData = cvvService.getData(startDate, endDate, month);
-        List<BrosurRecord> brosurData = brosurService.getData(startDate, endDate, month);
+    public List<RankingGroup> getData(String startDate, String endDate, Integer month, Integer year) throws IOException {
+        List<PsaRecord> psaData = psaService.getData(startDate, endDate, month, year);
+        List<CvvRecord> cvvData = cvvService.getData(startDate, endDate, month, year);
+        List<BrosurRecord> brosurData = brosurService.getData(startDate, endDate, month, year);
 
         List<RankingGroup> groups = new ArrayList<>();
 

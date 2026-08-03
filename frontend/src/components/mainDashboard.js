@@ -11,11 +11,12 @@ let barChartInstance = null;
 let ccvRekapChartInstance = null;
 let brosurRekapChartInstance = null;
 let currentMainSlideIndex = 0;
-let currentRecentFilter = 'all';
+let currentRecentFilter = 'today';
 let currentRecentSearch = '';
 let typeFilters = { PSA: false, CVV: false, BROSUR: false };
-let currentMonitoringMonth = new Date().getMonth();
+let currentMonitoringFilter = 'today';
 let currentRankingPeriod = 'all';
+let currentGlobalYear = new Date().getFullYear().toString();
 
 export async function renderMainDashboard(container) {
   if (!isFetched) {
@@ -42,10 +43,27 @@ export async function renderMainDashboard(container) {
       isFetched = true;
     }
 
+    const getAvailableYearsHtml = (currentYearVal) => {
+      const years = new Set();
+      const addYear = (ts) => {
+        const d = parseD(ts);
+        if (d) years.add(d.getFullYear());
+      };
+      allPsaData.forEach(r => addYear(r.timestamp));
+      allCvvData.forEach(r => addYear(r.timestamp));
+      allBrosurData.forEach(r => addYear(r.tanggal));
+      years.add(new Date().getFullYear());
+      return Array.from(years).sort((a,b) => b - a).map(y => `<option value="${y}" ${currentYearVal === String(y) ? 'selected' : ''}>Tahun: ${y}</option>`).join('');
+    };
+
     container.innerHTML = `
       <div class="dashboard-header-row" style="display:flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem;">
         <h2 style="font-size: 1.5rem; font-weight: 700; color: var(--color-text); margin: 0;">Dashboard Utama</h2>
-        <div class="filter-controls">
+        <div class="filter-controls" style="display: flex; gap: 0.5rem;">
+          <select id="globalYearFilter" class="filter-select" style="padding: 0.5rem 1rem; border-radius: 8px; border: 1px solid var(--color-border); background: white; font-weight: 500; cursor: pointer; outline: none; font-family: inherit;">
+            <option value="all" ${currentGlobalYear === 'all' ? 'selected' : ''}>Semua Tahun</option>
+            ${getAvailableYearsHtml(currentGlobalYear)}
+          </select>
           <select id="dateFilter" class="filter-select" style="padding: 0.5rem 1rem; border-radius: 8px; border: 1px solid var(--color-border); background: white; font-weight: 500; cursor: pointer; outline: none; font-family: inherit;">
             <option value="all">Semua Waktu (All Time)</option>
             <option value="today">Hari Ini (Today)</option>
@@ -59,6 +77,11 @@ export async function renderMainDashboard(container) {
     `;
 
     const contentContainer = document.getElementById('dashboard-content');
+
+    document.getElementById('globalYearFilter').addEventListener('change', (e) => {
+      currentGlobalYear = e.target.value;
+      renderContent(contentContainer, document.getElementById('dateFilter').value);
+    });
 
     document.getElementById('dateFilter').addEventListener('change', (e) => {
       renderContent(contentContainer, e.target.value);
@@ -222,8 +245,10 @@ function renderContent(container, filterValue) {
       <div class="chart-container-box col-span-12" style="box-sizing: border-box; padding: 1rem;">
         <div style="display:flex; justify-content: space-between; align-items:center; margin-bottom:1rem;">
           <h3 class="chart-title" style="margin:0;">Monitoring</h3>
-          <select id="monitoringMonthSelect" style="padding: 0.4rem 0.75rem; border-radius: 8px; border: 1px solid #e2e8f0; outline: none; font-weight: 500; font-family: inherit; background: white; cursor: pointer; color: #1e293b; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
-             ${['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'].map((m, i) => `<option value="${i}" ${currentMonitoringMonth === i ? 'selected' : ''}>Bulan: ${m}</option>`).join('')}
+          <select id="monitoringFilterSelect" style="padding: 0.4rem 0.75rem; border-radius: 8px; border: 1px solid #e2e8f0; outline: none; font-weight: 500; font-family: inherit; background: white; cursor: pointer; color: #1e293b; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
+             <option value="today" ${currentMonitoringFilter === 'today' ? 'selected' : ''}>Hari Ini</option>
+             <option value="yesterday" ${currentMonitoringFilter === 'yesterday' ? 'selected' : ''}>Kemarin</option>
+             ${['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'].map((m, i) => `<option value="${i}" ${currentMonitoringFilter === String(i) ? 'selected' : ''}>Bulan: ${m}</option>`).join('')}
           </select>
         </div>
         ${generateMonitoringHtml()}
@@ -245,6 +270,9 @@ function renderContent(container, filterValue) {
       let filters = {};
       if (newPeriod === 'this_month') {
         filters.month = new Date().getMonth() + 1; // 1-12
+        filters.year = currentGlobalYear !== 'all' ? parseInt(currentGlobalYear, 10) : new Date().getFullYear();
+      } else if (currentGlobalYear !== 'all') {
+        filters.year = parseInt(currentGlobalYear, 10);
       }
       allRankingData = await fetchRanking(filters);
       const displayData = allRankingData.map(group => ({
@@ -344,8 +372,8 @@ function renderContent(container, filterValue) {
     });
   });
 
-  document.getElementById('monitoringMonthSelect').addEventListener('change', (e) => {
-    currentMonitoringMonth = parseInt(e.target.value, 10);
+  document.getElementById('monitoringFilterSelect').addEventListener('change', (e) => {
+    currentMonitoringFilter = e.target.value;
     renderContent(container, filterValue);
   });
 
@@ -377,6 +405,11 @@ function renderRecentActivities() {
   combined = combined.filter(row => {
     const d = parseD(row.timestamp);
     if (!d) return false;
+    
+    if (currentGlobalYear !== 'all' && d.getFullYear() !== parseInt(currentGlobalYear, 10)) {
+      return false;
+    }
+
     if (currentRecentFilter === 'all') return true;
     d.setHours(0, 0, 0, 0);
     const diffDays = Math.floor((now.getTime() - d.getTime()) / (1000 * 60 * 60 * 24));
@@ -392,7 +425,13 @@ function renderRecentActivities() {
     combined = combined.filter(r => r.reporter.toLowerCase().includes(q) || r.unit.toLowerCase().includes(q));
   }
 
-  combined.sort((a, b) => parseD(b.timestamp) - parseD(a.timestamp));
+  combined.sort((a, b) => {
+    const da = parseD(a.timestamp);
+    const db = parseD(b.timestamp);
+    const ta = da ? da.getTime() : 0;
+    const tb = db ? db.getTime() : 0;
+    return tb - ta;
+  });
 
   listContainer.innerHTML = combined.map(act => {
     let iconSvg = '';
@@ -436,6 +475,16 @@ function renderRecentActivities() {
 }
 
 function filterDataByDate(data, filterType) {
+  if (currentGlobalYear !== 'all') {
+    const y = parseInt(currentGlobalYear, 10);
+    data = data.filter(row => {
+      const rawDate = row.timestamp || row.tanggal;
+      if (!rawDate) return false;
+      const d = parseD(rawDate);
+      return d && d.getFullYear() === y;
+    });
+  }
+
   if (!filterType || filterType === 'all') return data;
   const now = new Date(); now.setHours(0, 0, 0, 0);
   return data.filter(row => {
@@ -455,23 +504,43 @@ function filterDataByDate(data, filterType) {
 
 function parseD(ts) {
   if (!ts) return null;
-  const parts = ts.split(/[-/ :]/);
-  if (parts.length >= 3) {
-    let d;
-    if (ts.includes('/')) {
-        if (!ts.includes(' ')) {
-            // Brosur: MM/DD/YYYY (no time component)
-            d = new Date(parts[2], parts[0] - 1, parts[1]);
-        } else {
-            // PSA/CCV: DD/MM/YYYY HH:MM:SS
-            d = new Date(parts[2], parts[1] - 1, parts[0], parts[3] || 0, parts[4] || 0, parts[5] || 0);
-        }
+  const parts = ts.split(/[-/ :T]/);
+  if (parts.length < 3) return null;
+
+  let year, month, day;
+
+  if (parts[0].length === 4) {
+    year = parseInt(parts[0], 10);
+    month = parseInt(parts[1], 10) - 1;
+    day = parseInt(parts[2], 10);
+  } else if (parts[2].length === 4) {
+    year = parseInt(parts[2], 10);
+    let p0 = parseInt(parts[0], 10);
+    let p1 = parseInt(parts[1], 10);
+    
+    if (p0 > 12) {
+      // Must be DD/MM/YYYY
+      day = p0;
+      month = p1 - 1;
+    } else if (p1 > 12) {
+      // Must be MM/DD/YYYY
+      month = p0 - 1;
+      day = p1;
     } else {
-        d = new Date(parts[0], parts[1] - 1, parts[2], parts[3] || 0, parts[4] || 0, parts[5] || 0);
+      // Default MUST be DD/MM/YYYY
+      day = p0;
+      month = p1 - 1;
     }
-    return isNaN(d.getTime()) ? null : d;
+  } else {
+    return null;
   }
-  return null;
+
+  const hour = parts[3] ? parseInt(parts[3], 10) : 0;
+  const minute = parts[4] ? parseInt(parts[4], 10) : 0;
+  const second = parts[5] ? parseInt(parts[5], 10) : 0;
+
+  const d = new Date(year, month, day, hour, minute, second);
+  return isNaN(d.getTime()) ? null : d;
 }
 
 function aggregateByHour(psa, cvv) {
@@ -728,15 +797,29 @@ function escapeHtml(str) {
 
 function generateMonitoringHtml() {
   const targetUnit = 'UP3 KEBON JERUK';
-  const targetMonth = currentMonitoringMonth;
-  const monthNames = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+  const targetFilter = currentMonitoringFilter;
+  const now = new Date();
+  now.setHours(0, 0, 0, 0);
 
   const isMatch = (timestamp, unit) => {
     const d = parseD(timestamp);
-    return d && d.getMonth() === targetMonth && (unit || '').toUpperCase().includes(targetUnit);
+    if (!d || !((unit || '').toUpperCase().includes(targetUnit))) return false;
+    
+    if (currentGlobalYear !== 'all' && d.getFullYear() !== parseInt(currentGlobalYear, 10)) return false;
+    
+    if (targetFilter === 'today') {
+      d.setHours(0, 0, 0, 0);
+      return (now.getTime() - d.getTime()) === 0;
+    } else if (targetFilter === 'yesterday') {
+      d.setHours(0, 0, 0, 0);
+      return Math.floor((now.getTime() - d.getTime()) / 86400000) === 1;
+    } else {
+      return d.getMonth() === parseInt(targetFilter, 10);
+    }
   };
 
   const psaFiltered = allPsaData.filter(r => isMatch(r.timestamp, r.namaUnit));
+  const ccvFiltered = allCvvData.filter(r => isMatch(r.timestamp, r.namaUnit));
   const brosurFiltered = allBrosurData.filter(r => { 
     let d = null;
     if (r.tanggal) {
@@ -746,7 +829,19 @@ function generateMonitoringHtml() {
         else if (parts[2].length === 4) d = new Date(parts[2], parts[0]-1, parts[1]);
       }
     }
-    return d && !isNaN(d.getTime()) && d.getMonth() === targetMonth; 
+    if (!d || isNaN(d.getTime())) return false;
+    
+    if (currentGlobalYear !== 'all' && d.getFullYear() !== parseInt(currentGlobalYear, 10)) return false;
+    
+    if (targetFilter === 'today') {
+      d.setHours(0, 0, 0, 0);
+      return (now.getTime() - d.getTime()) === 0;
+    } else if (targetFilter === 'yesterday') {
+      d.setHours(0, 0, 0, 0);
+      return Math.floor((now.getTime() - d.getTime()) / 86400000) === 1;
+    } else {
+      return d.getMonth() === parseInt(targetFilter, 10);
+    }
   });
 
   const manajemenRoles = ['MANAGER', 'ASMAN JAR', 'ASMAN KONS', 'ASMAN TEL', 'ASMAN AGA', 'ASMAN SAR', 'ASMAN KU'];
@@ -754,6 +849,7 @@ function generateMonitoringHtml() {
   const flyerRoles = ['YANTEK', 'MANBILL', 'P2TL'];
 
   const psaCounts = {};
+  const unmappedPsaRoles = {};
   manajemenRoles.concat(tlRoles).forEach(r => psaCounts[r] = 0);
   psaFiltered.forEach(r => {
       let j = (r.jabatanInspektor || '').toUpperCase();
@@ -764,7 +860,7 @@ function generateMonitoringHtml() {
       j = j.replace('OPERASI', 'OP');
       j = j.replace('PEMELIHARAAN', 'HAR');
       j = j.replace('PENGENDALIAN KONSTRUKSI', 'DALKON');
-      j = j.replace('SAMBUNG PUTUS', 'BUNGTUS');
+      j = j.replace('SAMBUNG PUTUS', 'BUNGTUS').replace('PENYAMBUNGAN DAN PEMUTUSAN', 'BUNGTUS');
       j = j.replace('LOGISTIK', 'LOG');
       j = j.replace('PENGENDALIAN APP', 'DALAPP');
       j = j.replace('K3L', 'K4L');
@@ -777,8 +873,20 @@ function generateMonitoringHtml() {
       j = j.replace('KEUANGAN DAN UMUM', 'KU').replace('KEUANGAN & UMUM', 'KU');
       j = j.replace('MANAJER', 'MANAGER').replace('MGR', 'MANAGER');
 
-      manajemenRoles.concat(tlRoles).forEach(role => { if(j.includes(role)) psaCounts[role]++; });
+      let matched = false;
+      manajemenRoles.concat(tlRoles).forEach(role => { 
+        if(j.includes(role)) {
+           psaCounts[role]++; 
+           matched = true;
+        } 
+      });
+      
+      if (!matched && r.jabatanInspektor) {
+         unmappedPsaRoles[r.jabatanInspektor] = (unmappedPsaRoles[r.jabatanInspektor] || 0) + 1;
+      }
   });
+
+  const unmappedPsaList = Object.entries(unmappedPsaRoles).sort((a, b) => b[1] - a[1]);
 
   const brosurCounts = {};
   flyerRoles.forEach(r => brosurCounts[r] = 0);
@@ -792,6 +900,26 @@ function generateMonitoringHtml() {
         }
       });
   });
+
+  const normalizeCompany = (name) => {
+    if (!name) return 'TIDAK DIKETAHUI';
+    let n = name.toUpperCase().trim();
+    n = n.replace(/^(PT|CV|UD|FIRMA)\s*\.?\s*/g, '');
+    n = n.replace(/\(PERSERO\)/g, '').replace(/TBK\.?/g, '');
+    n = n.replace(/[^\w\s]/g, ''); // remove punctuation
+    n = n.replace(/\s+/g, ' ').trim();
+    if (n.includes('PLN') && !n.includes('HALEYORA') && !n.includes('ICON')) return 'PLN';
+    if (n.includes('HALEYORA') || n === 'HPI') return 'HALEYORA POWERINDO';
+    return n || 'TIDAK DIKETAHUI';
+  };
+
+  const ccvCounts = {};
+  ccvFiltered.forEach(r => {
+    const comp = normalizeCompany(r.perusahaan);
+    ccvCounts[comp] = (ccvCounts[comp] || 0) + 1;
+  });
+
+  const sortedCcv = Object.entries(ccvCounts).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
 
   return `
     <div style="font-family: inherit; color: #334155;">
@@ -847,6 +975,42 @@ function generateMonitoringHtml() {
                   </li>`).join('')}
              </ul>
           </div>
+
+          <!-- CCV Perusahaan Card -->
+          <div style="background: white; border-radius: 12px; border: 1px solid #e2e8f0; padding: 1.25rem; box-shadow: 0 1px 2px rgba(0,0,0,0.02);">
+             <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 1rem;">
+                <span style="display:inline-block; width:8px; height:8px; background:#10b981; border-radius:50%;"></span>
+                <h4 style="font-weight: 600; font-size: 0.95rem; margin: 0; color: #0f172a;">CCV (Mitra)</h4>
+             </div>
+             <ul style="list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.25rem; max-height: 250px; overflow-y: auto; padding-right: 0.5rem;">
+                ${sortedCcv.length === 0 ? '<li style="color:#94a3b8; font-size:0.8rem;">Tidak ada data CCV</li>' : sortedCcv.map(([comp, count]) => `
+                  <li style="display:flex; justify-content:space-between; align-items:center; font-size: 0.8rem; padding: 0.4rem 0; border-bottom: 1px solid #f8fafc;">
+                    <span style="color:#475569; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 150px;" title="${comp}">${comp}</span>
+                    <strong style="color: #059669; background: #d1fae5; padding: 0.15rem 0.4rem; border-radius: 4px; font-weight: 600;">
+                        ${count}
+                    </strong>
+                  </li>`).join('')}
+             </ul>
+          </div>
+
+          <!-- Unmapped PSA Card -->
+          ${unmappedPsaList.length > 0 ? `
+          <div style="background: white; border-radius: 12px; border: 1px solid #fee2e2; padding: 1.25rem; box-shadow: 0 1px 2px rgba(0,0,0,0.02);">
+             <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 1rem;">
+                <span style="display:inline-block; width:8px; height:8px; background:#ef4444; border-radius:50%;"></span>
+                <h4 style="font-weight: 600; font-size: 0.95rem; margin: 0; color: #7f1d1d;">Jabatan Lain (Unmapped)</h4>
+             </div>
+             <ul style="list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.25rem; max-height: 250px; overflow-y: auto; padding-right: 0.5rem;">
+                ${unmappedPsaList.map(([role, count]) => `
+                  <li style="display:flex; justify-content:space-between; align-items:center; font-size: 0.8rem; padding: 0.4rem 0; border-bottom: 1px solid #fef2f2;">
+                    <span style="color:#991b1b; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 150px;" title="${role}">${role}</span>
+                    <strong style="color: #b91c1c; background: #fee2e2; padding: 0.15rem 0.4rem; border-radius: 4px; font-weight: 600;">
+                        ${count}
+                    </strong>
+                  </li>`).join('')}
+             </ul>
+          </div>
+          ` : ''}
 
       </div>
     </div>

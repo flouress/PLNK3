@@ -1,8 +1,6 @@
 package com.plnk3.service;
 
 import com.google.api.services.sheets.v4.Sheets;
-import com.google.api.services.sheets.v4.model.BatchGetValuesResponse;
-import com.google.api.services.sheets.v4.model.ValueRange;
 import com.plnk3.model.CvvRecord;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
@@ -21,10 +19,6 @@ public class CvvService {
     private final Sheets sheetsService;
     private final String spreadsheetId;
 
-    private static final List<String> MONTH_TABS = Arrays.asList(
-            "JANUARI", "FEBRUARI", "MARET", "APRIL", "MEI", "JUNI",
-            "JULI", "AGUSTUS", "SEPTEMBER", "OKTOBER", "NOVEMBER", "DESEMBER"
-    );
 
     public CvvService(Sheets sheetsService, @Qualifier("spreadsheetId") String spreadsheetId) {
         this.sheetsService = sheetsService;
@@ -38,67 +32,39 @@ public class CvvService {
     /**
      * Mengambil data CVV dari Google Sheets (multi-tab per bulan) dengan optional filter tanggal.
      */
-    public List<CvvRecord> getData(String startDate, String endDate, Integer month) throws IOException {
+    public List<CvvRecord> getData(String startDate, String endDate, Integer month, Integer year) throws IOException {
         List<CvvRecord> allData;
 
         if (cachedData != null && (System.currentTimeMillis() - lastCacheTime) < CACHE_DURATION_MS) {
             allData = cachedData;
         } else {
             try {
-                // 1. Dapatkan daftar nama sheet yang ada di dokumen
-                List<com.google.api.services.sheets.v4.model.Sheet> sheets = sheetsService.spreadsheets()
-                        .get(spreadsheetId)
+                String range = "CCV!A:F";
+                List<List<Object>> values = sheetsService.spreadsheets().values()
+                        .get(spreadsheetId, range)
                         .execute()
-                        .getSheets();
-                        
-                List<String> existingTabs = new ArrayList<>();
-                for (com.google.api.services.sheets.v4.model.Sheet sheet : sheets) {
-                    existingTabs.add(sheet.getProperties().getTitle().toUpperCase());
-                }
+                        .getValues();
 
-                List<String> rangesToFetch = new ArrayList<>();
-                // Fetch semua tab bulan yang tersedia di dokumen untuk di-cache
-                for (String tab : MONTH_TABS) {
-                    if (existingTabs.contains(tab)) {
-                        rangesToFetch.add(tab + "!A:F");
-                    }
-                }
-
-                // Jika tidak ada tab bulan yang cocok, kembalikan list kosong
-                if (rangesToFetch.isEmpty()) {
+                if (values == null || values.size() <= 1) {
                     allData = new ArrayList<>();
                 } else {
-                    BatchGetValuesResponse response = sheetsService.spreadsheets().values()
-                            .batchGet(spreadsheetId)
-                            .setRanges(rangesToFetch)
-                            .execute();
-
                     List<CvvRecord> records = new ArrayList<>();
-                    
-                    List<ValueRange> valueRanges = response.getValueRanges();
-                    if (valueRanges != null) {
-                        for (ValueRange valueRange : valueRanges) {
-                            List<List<Object>> values = valueRange.getValues();
-                            if (values != null && values.size() > 1) {
-                                // Start from index 1 to skip header row of each tab
-                                for (int i = 1; i < values.size(); i++) {
-                                    List<Object> row = values.get(i);
-                                    // Cek kalau baris kosong (kolom pertama timestamp tidak ada)
-                                    if (row == null || row.isEmpty() || getCell(row, 0).trim().isEmpty()) {
-                                        continue;
-                                    }
-                                    CvvRecord record = new CvvRecord(
-                                            getCell(row, 0),
-                                            getCell(row, 1),
-                                            getCell(row, 2),
-                                            getCell(row, 3),
-                                            getCell(row, 4),
-                                            getCell(row, 5)
-                                    );
-                                    records.add(record);
-                                }
-                            }
+                    // Start from index 1 to skip header row
+                    for (int i = 1; i < values.size(); i++) {
+                        List<Object> row = values.get(i);
+                        // Cek kalau baris kosong (kolom pertama timestamp tidak ada)
+                        if (row == null || row.isEmpty() || getCell(row, 0).trim().isEmpty()) {
+                            continue;
                         }
+                        CvvRecord record = new CvvRecord(
+                                getCell(row, 0),
+                                getCell(row, 1),
+                                getCell(row, 2),
+                                getCell(row, 3),
+                                getCell(row, 4),
+                                getCell(row, 5)
+                        );
+                        records.add(record);
                     }
                     allData = records;
                 }
@@ -115,12 +81,12 @@ public class CvvService {
             }
         }
 
-        return applyFilters(allData, startDate, endDate, month);
+        return applyFilters(allData, startDate, endDate, month, year);
     }
 
     private List<CvvRecord> applyFilters(List<CvvRecord> records,
-                                          String startDate, String endDate, Integer month) {
-        if (startDate == null && endDate == null && month == null) {
+                                          String startDate, String endDate, Integer month, Integer year) {
+        if (startDate == null && endDate == null && month == null && year == null) {
             return records;
         }
 
@@ -150,6 +116,13 @@ public class CvvService {
                 }
             }
 
+            // Filter by year
+            if (year != null) {
+                if (recordDate.getYear() != year) {
+                    return false;
+                }
+            }
+
             return true;
         }).collect(Collectors.toList());
     }
@@ -172,9 +145,21 @@ public class CvvService {
                 month = Integer.parseInt(parts[1]);
                 day = Integer.parseInt(parts[2]);
             } else {
-                day = Integer.parseInt(parts[0]);
-                month = Integer.parseInt(parts[1]);
+                int p0 = Integer.parseInt(parts[0]);
+                int p1 = Integer.parseInt(parts[1]);
                 year = Integer.parseInt(parts[2]);
+
+                if (p0 > 12) {
+                    day = p0;
+                    month = p1;
+                } else if (p1 > 12) {
+                    month = p0;
+                    day = p1;
+                } else {
+                    // Default MUST be DD/MM/YYYY according to user request
+                    day = p0;
+                    month = p1;
+                }
             }
             return LocalDateTime.of(year, month, day, 0, 0);
         } catch (Exception e) {

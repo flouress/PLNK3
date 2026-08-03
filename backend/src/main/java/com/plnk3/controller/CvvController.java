@@ -27,7 +27,8 @@ public class CvvController {
     public ResponseEntity<?> getCvvData(
             @RequestParam(required = false) String startDate,
             @RequestParam(required = false) String endDate,
-            @RequestParam(required = false) Integer month) {
+            @RequestParam(required = false) Integer month,
+            @RequestParam(required = false) Integer year) {
 
         // Validasi input
         if (startDate != null && !startDate.matches(DATE_PATTERN)) {
@@ -42,9 +43,13 @@ public class CvvController {
             return ResponseEntity.badRequest()
                     .body("{\"error\": \"Nilai month harus antara 1-12\"}");
         }
+        if (year != null && (year < 2000 || year > 2100)) {
+            return ResponseEntity.badRequest()
+                    .body("{\"error\": \"Nilai year tidak valid\"}");
+        }
 
         try {
-            List<CvvRecord> data = cvvService.getData(startDate, endDate, month);
+            List<CvvRecord> data = cvvService.getData(startDate, endDate, month, year);
             return ResponseEntity.ok(data);
         } catch (IOException e) {
             log.error("Gagal mengambil data CVV", e);

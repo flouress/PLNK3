@@ -27,7 +27,8 @@ public class BrosurController {
     public ResponseEntity<?> getBrosurData(
             @RequestParam(required = false) String startDate,
             @RequestParam(required = false) String endDate,
-            @RequestParam(required = false) Integer month) {
+            @RequestParam(required = false) Integer month,
+            @RequestParam(required = false) Integer year) {
 
         if (startDate != null && !startDate.matches(DATE_PATTERN)) {
             return ResponseEntity.badRequest()
@@ -41,9 +42,13 @@ public class BrosurController {
             return ResponseEntity.badRequest()
                     .body("{\"error\": \"Nilai month harus antara 1-12\"}");
         }
+        if (year != null && (year < 2000 || year > 2100)) {
+            return ResponseEntity.badRequest()
+                    .body("{\"error\": \"Nilai year tidak valid\"}");
+        }
 
         try {
-            List<BrosurRecord> data = brosurService.getData(startDate, endDate, month);
+            List<BrosurRecord> data = brosurService.getData(startDate, endDate, month, year);
             return ResponseEntity.ok(data);
         } catch (IOException e) {
             log.error("Gagal mengambil data Brosur", e);

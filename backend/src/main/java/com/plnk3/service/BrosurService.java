@@ -31,7 +31,7 @@ public class BrosurService {
      * Mengambil semua data Brosur dari Google Sheets.
      * Tidak ada filter karena format tanggal di tab Brosur bersifat manual/tidak konsisten.
      */
-    public List<BrosurRecord> getData(String startDate, String endDate, Integer month) throws IOException {
+    public List<BrosurRecord> getData(String startDate, String endDate, Integer month, Integer year) throws IOException {
         List<BrosurRecord> allData;
 
         if (cachedData != null && (System.currentTimeMillis() - lastCacheTime) < CACHE_DURATION_MS) {
@@ -72,12 +72,12 @@ public class BrosurService {
             }
         }
 
-        return applyFilters(allData, startDate, endDate, month);
+        return applyFilters(allData, startDate, endDate, month, year);
     }
 
     private List<BrosurRecord> applyFilters(List<BrosurRecord> records,
-                                          String startDate, String endDate, Integer month) {
-        if (startDate == null && endDate == null && month == null) {
+                                          String startDate, String endDate, Integer month, Integer year) {
+        if (startDate == null && endDate == null && month == null && year == null) {
             return records;
         }
 
@@ -101,6 +101,12 @@ public class BrosurService {
 
             if (month != null) {
                 if (recordDate.getMonthValue() != month) {
+                    return false;
+                }
+            }
+
+            if (year != null) {
+                if (recordDate.getYear() != year) {
                     return false;
                 }
             }

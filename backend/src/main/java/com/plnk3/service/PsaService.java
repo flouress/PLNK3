@@ -35,8 +35,9 @@ public class PsaService {
      * @param startDate filter mulai tanggal (format: yyyy-MM-dd), nullable
      * @param endDate   filter sampai tanggal (format: yyyy-MM-dd), nullable
      * @param month     filter bulan spesifik (1-12), nullable
+     * @param year      filter tahun spesifik, nullable
      */
-    public List<PsaRecord> getData(String startDate, String endDate, Integer month) throws IOException {
+    public List<PsaRecord> getData(String startDate, String endDate, Integer month, Integer year) throws IOException {
         List<PsaRecord> allData;
 
         if (cachedData != null && (System.currentTimeMillis() - lastCacheTime) < CACHE_DURATION_MS) {
@@ -80,12 +81,12 @@ public class PsaService {
         }
 
         // Apply filters jika ada
-        return applyFilters(allData, startDate, endDate, month);
+        return applyFilters(allData, startDate, endDate, month, year);
     }
 
     private List<PsaRecord> applyFilters(List<PsaRecord> records,
-                                          String startDate, String endDate, Integer month) {
-        if (startDate == null && endDate == null && month == null) {
+                                          String startDate, String endDate, Integer month, Integer year) {
+        if (startDate == null && endDate == null && month == null && year == null) {
             return records;
         }
 
@@ -111,6 +112,13 @@ public class PsaService {
             // Filter by month
             if (month != null) {
                 if (recordDate.getMonthValue() != month) {
+                    return false;
+                }
+            }
+
+            // Filter by year
+            if (year != null) {
+                if (recordDate.getYear() != year) {
                     return false;
                 }
             }

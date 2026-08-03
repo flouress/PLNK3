@@ -39,6 +39,7 @@ export async function fetchPsa(filters = {}) {
   if (filters.startDate) params.startDate = filters.startDate;
   if (filters.endDate) params.endDate = filters.endDate;
   if (filters.month) params.month = filters.month;
+  if (filters.year) params.year = filters.year;
 
   const response = await api.get('/api/psa', { params });
   return response.data;
@@ -53,6 +54,7 @@ export async function fetchCvv(filters = {}) {
   if (filters.startDate) params.startDate = filters.startDate;
   if (filters.endDate) params.endDate = filters.endDate;
   if (filters.month) params.month = filters.month;
+  if (filters.year) params.year = filters.year;
 
   const response = await api.get('/api/cvv', { params });
   return response.data;
@@ -66,6 +68,7 @@ export async function fetchBrosur(filters = {}) {
   if (filters.startDate) params.startDate = filters.startDate;
   if (filters.endDate) params.endDate = filters.endDate;
   if (filters.month) params.month = filters.month;
+  if (filters.year) params.year = filters.year;
 
   const response = await api.get('/api/brosur', { params });
   return response.data;
@@ -79,6 +82,7 @@ export async function fetchRanking(filters = {}) {
   if (filters.startDate) params.startDate = filters.startDate;
   if (filters.endDate) params.endDate = filters.endDate;
   if (filters.month) params.month = filters.month;
+  if (filters.year) params.year = filters.year;
 
   const response = await api.get('/api/ranking', { params });
   return response.data;
