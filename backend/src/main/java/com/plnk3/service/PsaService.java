@@ -95,7 +95,7 @@ public class PsaService {
         return records.stream().filter(record -> {
             LocalDateTime recordDate = parseDate(record.getTimestamp());
             if (recordDate == null) {
-                return true; // Jika tidak ada timestamp, anggap masuk
+                return false; // Abaikan jika tidak ada timestamp valid saat memfilter
             }
 
             // Filter by date range

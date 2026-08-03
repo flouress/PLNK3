@@ -30,8 +30,11 @@ export function renderDataTable(container, title, columns, data) {
   // State untuk pagination & sort & filter
   let currentPage = 1;
   let itemsPerPage = 10;
-  let sortKey = null;
-  let sortOrder = 'asc';
+  
+  // Set default sort to date column (newest first)
+  const dateCol = columns.find(c => c.key.toLowerCase().includes('timestamp') || c.key.toLowerCase().includes('tanggal'));
+  let sortKey = dateCol ? dateCol.key : null;
+  let sortOrder = dateCol ? 'desc' : 'asc';
   
   let globalSearch = '';
   let columnFilters = {};
@@ -70,17 +73,30 @@ export function renderDataTable(container, title, columns, data) {
             let valB = (b[sortKey] || '').toString();
             
             if (sortKey.toLowerCase().includes('timestamp') || sortKey.toLowerCase().includes('tanggal')) {
+                const isUSFormat = title.toLowerCase().includes('ccv') || title.toLowerCase().includes('brosur');
                 const parseDate = (ts) => {
                     if (!ts) return 0;
                     const datePart = ts.split(' ')[0];
                     if (datePart.includes('/')) {
                         const p = datePart.split('/');
-                        if (p.length===3) return new Date(p[2], p[1]-1, p[0]).getTime();
+                        if (p.length===3) {
+                            const p0 = parseInt(p[0], 10);
+                            const p1 = parseInt(p[1], 10);
+                            const p2 = parseInt(p[2], 10);
+                            if (p0 > 12) return new Date(p2, p1-1, p0).getTime(); // ID fallback
+                            if (p1 > 12) return new Date(p2, p0-1, p1).getTime(); // US fallback
+                            return isUSFormat ? new Date(p2, p0-1, p1).getTime() : new Date(p2, p1-1, p0).getTime();
+                        }
                     } else if (datePart.includes('-')) {
                         const p = datePart.split('-');
                         if (p.length===3) {
                             if (p[0].length === 4) return new Date(p[0], p[1]-1, p[2]).getTime();
-                            return new Date(p[2], p[1]-1, p[0]).getTime();
+                            const p0 = parseInt(p[0], 10);
+                            const p1 = parseInt(p[1], 10);
+                            const p2 = parseInt(p[2], 10);
+                            if (p0 > 12) return new Date(p2, p1-1, p0).getTime();
+                            if (p1 > 12) return new Date(p2, p0-1, p1).getTime();
+                            return isUSFormat ? new Date(p2, p0-1, p1).getTime() : new Date(p2, p1-1, p0).getTime();
                         }
                     }
                     return 0;

@@ -86,7 +86,7 @@ public class BrosurService {
         return records.stream().filter(record -> {
             LocalDateTime recordDate = parseDate(record.getTanggal());
             if (recordDate == null) {
-                return true; 
+                return false; 
             }
 
             if (startDate != null && endDate != null) {

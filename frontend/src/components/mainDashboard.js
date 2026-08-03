@@ -13,7 +13,7 @@ let brosurRekapChartInstance = null;
 let currentMainSlideIndex = 0;
 let currentRecentFilter = 'today';
 let currentRecentSearch = '';
-let typeFilters = { PSA: false, CVV: false, BROSUR: false };
+let typeFilters = { PSA: false, CCV: false, BROSUR: false };
 let currentMonitoringFilter = 'today';
 let currentRankingPeriod = 'all';
 let currentGlobalYear = new Date().getFullYear().toString();
@@ -229,7 +229,7 @@ function renderContent(container, filterValue) {
         
         <div style="display:flex; gap: 0.5rem; margin-bottom: 0.75rem;" id="recent-type-filters">
           <button class="type-filter-btn" data-type="PSA" style="flex:1; padding: 0.35rem; border-radius: 6px; border: 1px solid ${typeFilters.PSA ? '#bfdbfe' : '#e2e8f0'}; background: ${typeFilters.PSA ? '#eff6ff' : '#f8fafc'}; color: ${typeFilters.PSA ? '#1d4ed8' : '#94a3b8'}; font-size: 0.75rem; font-weight: 600; cursor: pointer; transition: all 0.2s;">PSA</button>
-          <button class="type-filter-btn" data-type="CVV" style="flex:1; padding: 0.35rem; border-radius: 6px; border: 1px solid ${typeFilters.CVV ? '#bbf7d0' : '#e2e8f0'}; background: ${typeFilters.CVV ? '#f0fdf4' : '#f8fafc'}; color: ${typeFilters.CVV ? '#15803d' : '#94a3b8'}; font-size: 0.75rem; font-weight: 600; cursor: pointer; transition: all 0.2s;">CCV</button>
+          <button class="type-filter-btn" data-type="CCV" style="flex:1; padding: 0.35rem; border-radius: 6px; border: 1px solid ${typeFilters.CCV ? '#bbf7d0' : '#e2e8f0'}; background: ${typeFilters.CCV ? '#f0fdf4' : '#f8fafc'}; color: ${typeFilters.CCV ? '#15803d' : '#94a3b8'}; font-size: 0.75rem; font-weight: 600; cursor: pointer; transition: all 0.2s;">CCV</button>
           <button class="type-filter-btn" data-type="BROSUR" style="flex:1; padding: 0.35rem; border-radius: 6px; border: 1px solid ${typeFilters.BROSUR ? '#fde047' : '#e2e8f0'}; background: ${typeFilters.BROSUR ? '#fefce8' : '#f8fafc'}; color: ${typeFilters.BROSUR ? '#a16207' : '#94a3b8'}; font-size: 0.75rem; font-weight: 600; cursor: pointer; transition: all 0.2s;">BROSUR</button>
         </div>
         
@@ -359,7 +359,7 @@ function renderContent(container, filterValue) {
         const t = b.dataset.type;
         if (typeFilters[t]) {
           if (t === 'PSA') { b.style.background = '#eff6ff'; b.style.color = '#1d4ed8'; b.style.borderColor = '#bfdbfe'; }
-          if (t === 'CVV') { b.style.background = '#f0fdf4'; b.style.color = '#15803d'; b.style.borderColor = '#bbf7d0'; }
+          if (t === 'CCV') { b.style.background = '#f0fdf4'; b.style.color = '#15803d'; b.style.borderColor = '#bbf7d0'; }
           if (t === 'BROSUR') { b.style.background = '#fefce8'; b.style.color = '#a16207'; b.style.borderColor = '#fde047'; }
         } else {
           b.style.background = '#f8fafc';
@@ -387,7 +387,7 @@ function renderRecentActivities() {
   let combined = [];
   allPsaData.forEach(row => combined.push({ type: 'PSA', timestamp: row.timestamp || '', format: 'ID', reporter: row.namaInspektor || 'Tidak Diketahui', unit: row.namaUnit || 'Tidak Diketahui' }));
   allCvvData.forEach(row => combined.push({
-    type: 'CVV',
+    type: 'CCV',
     timestamp: row.timestamp || '',
     format: 'US',
     reporter: row.namaObserver || 'Tidak Diketahui',
@@ -397,7 +397,7 @@ function renderRecentActivities() {
   }));
   allBrosurData.forEach(row => combined.push({ type: 'BROSUR', timestamp: row.tanggal || '', format: 'US', reporter: row.pelaksana || 'Tidak Diketahui', unit: row.pekerjaan || 'Tidak Diketahui' }));
 
-  const isAnySelected = typeFilters.PSA || typeFilters.CVV || typeFilters.BROSUR;
+  const isAnySelected = typeFilters.PSA || typeFilters.CCV || typeFilters.BROSUR;
   combined = combined.filter(row => isAnySelected ? typeFilters[row.type] : true);
 
   const now = new Date();
@@ -443,7 +443,7 @@ function renderRecentActivities() {
     if (act.type === 'PSA') {
       iconBg = '#eff6ff'; iconColor = '#3b82f6';
       iconSvg = '<span style="font-weight:800; font-size:0.75rem; letter-spacing:0.5px;">PSA</span>';
-    } else if (act.type === 'CVV') {
+    } else if (act.type === 'CCV') {
       iconBg = '#f0fdf4'; iconColor = '#22c55e';
       iconSvg = '<span style="font-weight:800; font-size:0.75rem; letter-spacing:0.5px;">CCV</span>';
     } else { // BROSUR
@@ -452,7 +452,7 @@ function renderRecentActivities() {
     }
 
     let detailsHtml = '';
-    if (act.type === 'CVV' && (act.company || act.section)) {
+    if (act.type === 'CCV' && (act.company || act.section)) {
       let parts = [];
       if (act.company) parts.push(act.company);
       if (act.section) parts.push(act.section);
@@ -819,6 +819,8 @@ function generateMonitoringHtml() {
     } else if (targetFilter === 'yesterday') {
       d.setHours(0, 0, 0, 0);
       return Math.floor((now.getTime() - d.getTime()) / 86400000) === 1;
+    } else if (targetFilter === 'this_month') {
+      return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
     } else {
       return d.getMonth() === parseInt(targetFilter, 10);
     }
@@ -838,6 +840,8 @@ function generateMonitoringHtml() {
     } else if (targetFilter === 'yesterday') {
       d.setHours(0, 0, 0, 0);
       return Math.floor((now.getTime() - d.getTime()) / 86400000) === 1;
+    } else if (targetFilter === 'this_month') {
+      return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
     } else {
       return d.getMonth() === parseInt(targetFilter, 10);
     }
