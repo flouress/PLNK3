@@ -150,15 +150,17 @@ public class CvvService {
                 year = Integer.parseInt(parts[2]);
 
                 if (p0 > 12) {
+                    // Must be DD/MM/YYYY
                     day = p0;
                     month = p1;
                 } else if (p1 > 12) {
+                    // Must be MM/DD/YYYY
                     month = p0;
                     day = p1;
                 } else {
-                    // Default MUST be DD/MM/YYYY according to user request
-                    day = p0;
-                    month = p1;
+                    // Spreadsheet uses US locale natively, so 1/12 is Jan 12 (MM/DD/YYYY)
+                    month = p0;
+                    day = p1;
                 }
             }
             return LocalDateTime.of(year, month, day, 0, 0);

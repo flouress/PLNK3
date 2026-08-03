@@ -133,9 +133,20 @@ public class BrosurService {
                 month = Integer.parseInt(parts[1]);
                 day = Integer.parseInt(parts[2]);
             } else {
-                day = Integer.parseInt(parts[0]);
-                month = Integer.parseInt(parts[1]);
+                int p0 = Integer.parseInt(parts[0]);
+                int p1 = Integer.parseInt(parts[1]);
                 year = Integer.parseInt(parts[2]);
+                if (p0 > 12) {
+                    day = p0;
+                    month = p1;
+                } else if (p1 > 12) {
+                    month = p0;
+                    day = p1;
+                } else {
+                    // Default to MM/DD/YYYY according to user request
+                    month = p0;
+                    day = p1;
+                }
             }
             return LocalDateTime.of(year, month, day, 0, 0);
         } catch (Exception e) {

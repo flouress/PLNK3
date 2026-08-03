@@ -45,13 +45,13 @@ export async function renderMainDashboard(container) {
 
     const getAvailableYearsHtml = (currentYearVal) => {
       const years = new Set();
-      const addYear = (ts) => {
-        const d = parseD(ts);
+      const addYear = (ts, format) => {
+        const d = parseD(ts, format);
         if (d) years.add(d.getFullYear());
       };
-      allPsaData.forEach(r => addYear(r.timestamp));
-      allCvvData.forEach(r => addYear(r.timestamp));
-      allBrosurData.forEach(r => addYear(r.tanggal));
+      allPsaData.forEach(r => addYear(r.timestamp, 'ID'));
+      allCvvData.forEach(r => addYear(r.timestamp, 'US'));
+      allBrosurData.forEach(r => addYear(r.tanggal, 'US'));
       years.add(new Date().getFullYear());
       return Array.from(years).sort((a,b) => b - a).map(y => `<option value="${y}" ${currentYearVal === String(y) ? 'selected' : ''}>Tahun: ${y}</option>`).join('');
     };
@@ -103,9 +103,9 @@ export async function renderMainDashboard(container) {
 }
 
 function renderContent(container, filterValue) {
-  const filteredPsa = filterDataByDate(allPsaData, filterValue);
-  const filteredCvv = filterDataByDate(allCvvData, filterValue);
-  const filteredBrosur = filterDataByDate(allBrosurData, filterValue);
+  const filteredPsa = filterDataByDate(allPsaData, filterValue, 'ID');
+  const filteredCvv = filterDataByDate(allCvvData, filterValue, 'US');
+  const filteredBrosur = filterDataByDate(allBrosurData, filterValue, 'US');
 
   let chartLabels, chartPsa, chartCvv, chartTitle;
 
@@ -385,16 +385,17 @@ function renderRecentActivities() {
   if (!listContainer) return;
 
   let combined = [];
-  allPsaData.forEach(row => combined.push({ type: 'PSA', timestamp: row.timestamp || '', reporter: row.namaInspektor || 'Tidak Diketahui', unit: row.namaUnit || 'Tidak Diketahui' }));
+  allPsaData.forEach(row => combined.push({ type: 'PSA', timestamp: row.timestamp || '', format: 'ID', reporter: row.namaInspektor || 'Tidak Diketahui', unit: row.namaUnit || 'Tidak Diketahui' }));
   allCvvData.forEach(row => combined.push({
     type: 'CVV',
     timestamp: row.timestamp || '',
+    format: 'US',
     reporter: row.namaObserver || 'Tidak Diketahui',
     unit: row.namaUnit || 'Tidak Diketahui',
     company: row.perusahaan || '',
     section: row.pekerjaanPadaBagian || ''
   }));
-  allBrosurData.forEach(row => combined.push({ type: 'BROSUR', timestamp: row.tanggal || '', reporter: row.pelaksana || 'Tidak Diketahui', unit: row.pekerjaan || 'Tidak Diketahui' }));
+  allBrosurData.forEach(row => combined.push({ type: 'BROSUR', timestamp: row.tanggal || '', format: 'US', reporter: row.pelaksana || 'Tidak Diketahui', unit: row.pekerjaan || 'Tidak Diketahui' }));
 
   const isAnySelected = typeFilters.PSA || typeFilters.CVV || typeFilters.BROSUR;
   combined = combined.filter(row => isAnySelected ? typeFilters[row.type] : true);
@@ -403,7 +404,7 @@ function renderRecentActivities() {
   now.setHours(0, 0, 0, 0);
 
   combined = combined.filter(row => {
-    const d = parseD(row.timestamp);
+    const d = parseD(row.timestamp, row.format);
     if (!d) return false;
     
     if (currentGlobalYear !== 'all' && d.getFullYear() !== parseInt(currentGlobalYear, 10)) {
@@ -426,8 +427,8 @@ function renderRecentActivities() {
   }
 
   combined.sort((a, b) => {
-    const da = parseD(a.timestamp);
-    const db = parseD(b.timestamp);
+    const da = parseD(a.timestamp, a.format);
+    const db = parseD(b.timestamp, b.format);
     const ta = da ? da.getTime() : 0;
     const tb = db ? db.getTime() : 0;
     return tb - ta;
@@ -474,13 +475,13 @@ function renderRecentActivities() {
   }).join('') || '<p style="font-size:0.8rem; color:#94a3b8; padding: 0.5rem;">Tidak ada aktivitas.</p>';
 }
 
-function filterDataByDate(data, filterType) {
+function filterDataByDate(data, filterType, format = 'ID') {
   if (currentGlobalYear !== 'all') {
     const y = parseInt(currentGlobalYear, 10);
     data = data.filter(row => {
       const rawDate = row.timestamp || row.tanggal;
       if (!rawDate) return false;
-      const d = parseD(rawDate);
+      const d = parseD(rawDate, format);
       return d && d.getFullYear() === y;
     });
   }
@@ -490,7 +491,7 @@ function filterDataByDate(data, filterType) {
   return data.filter(row => {
     const rawDate = row.timestamp || row.tanggal;
     if (!rawDate) return false;
-    const d = parseD(rawDate);
+    const d = parseD(rawDate, format);
     if (!d || isNaN(d.getTime())) return false;
     d.setHours(0, 0, 0, 0);
     const diffDays = Math.floor((now.getTime() - d.getTime()) / (1000 * 60 * 60 * 24));
@@ -502,7 +503,7 @@ function filterDataByDate(data, filterType) {
   });
 }
 
-function parseD(ts) {
+function parseD(ts, format = 'ID') {
   if (!ts) return null;
   const parts = ts.split(/[-/ :T]/);
   if (parts.length < 3) return null;
@@ -519,17 +520,19 @@ function parseD(ts) {
     let p1 = parseInt(parts[1], 10);
     
     if (p0 > 12) {
-      // Must be DD/MM/YYYY
       day = p0;
       month = p1 - 1;
     } else if (p1 > 12) {
-      // Must be MM/DD/YYYY
       month = p0 - 1;
       day = p1;
     } else {
-      // Default MUST be DD/MM/YYYY
-      day = p0;
-      month = p1 - 1;
+      if (format === 'US') {
+        month = p0 - 1;
+        day = p1;
+      } else {
+        day = p0;
+        month = p1 - 1;
+      }
     }
   } else {
     return null;
@@ -547,55 +550,70 @@ function aggregateByHour(psa, cvv) {
   const labels = Array.from({ length: 24 }, (_, i) => `${i.toString().padStart(2, '0')}:00`);
   const psaCounts = new Array(24).fill(0);
   const cvvCounts = new Array(24).fill(0);
-  psa.forEach(r => { const d = parseD(r.timestamp); if (d) psaCounts[d.getHours()]++; });
-  cvv.forEach(r => { const d = parseD(r.timestamp); if (d) cvvCounts[d.getHours()]++; });
+  psa.forEach(r => { const d = parseD(r.timestamp, 'ID'); if (d) psaCounts[d.getHours()]++; });
+  cvv.forEach(r => { const d = parseD(r.timestamp, 'US'); if (d) cvvCounts[d.getHours()]++; });
   return { labels, psaCounts, cvvCounts };
 }
 
 function aggregateByDayOfWeek(psa, cvv) {
   const days = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
   const now = new Date();
+  now.setHours(0, 0, 0, 0);
   const labels = Array.from({ length: 7 }, (_, i) => {
     const d = new Date(now.getTime() - (6 - i) * 86400000);
     return days[d.getDay()];
   });
   const psaCounts = new Array(7).fill(0);
   const cvvCounts = new Array(7).fill(0);
-  psa.forEach(r => { const d = parseD(r.timestamp); if (d) { const diff = Math.floor((now - d) / 86400000); if (diff >= 0 && diff < 7) psaCounts[6 - diff]++; } });
-  cvv.forEach(r => { const d = parseD(r.timestamp); if (d) { const diff = Math.floor((now - d) / 86400000); if (diff >= 0 && diff < 7) cvvCounts[6 - diff]++; } });
+  const process = (data, counts, format) => data.forEach(r => {
+    const d = parseD(r.timestamp, format);
+    if (d) {
+      d.setHours(0, 0, 0, 0);
+      const diff = Math.round((now - d) / 86400000);
+      if (diff >= 0 && diff < 7) counts[6 - diff]++;
+    }
+  });
+  process(psa, psaCounts, 'ID');
+  process(cvv, cvvCounts, 'US');
   return { labels, psaCounts, cvvCounts };
 }
 
 function aggregateByDate(psa, cvv, daysCount) {
   const now = new Date();
+  now.setHours(0, 0, 0, 0);
   const labels = Array.from({ length: daysCount }, (_, i) => {
     const d = new Date(now.getTime() - (daysCount - 1 - i) * 86400000);
     return `${d.getDate().toString().padStart(2, '0')}/${(d.getMonth() + 1).toString().padStart(2, '0')}`;
   });
   const psaCounts = new Array(daysCount).fill(0);
   const cvvCounts = new Array(daysCount).fill(0);
-  const process = (data, counts) => data.forEach(r => {
-    const d = parseD(r.timestamp);
+  const process = (data, counts, format) => data.forEach(r => {
+    const d = parseD(r.timestamp, format);
     if (d) {
-      const diff = Math.floor((now - d) / 86400000);
+      d.setHours(0, 0, 0, 0);
+      const diff = Math.round((now - d) / 86400000);
       if (diff >= 0 && diff < daysCount) counts[daysCount - 1 - diff]++;
     }
   });
-  process(psa, psaCounts); process(cvv, cvvCounts);
+  process(psa, psaCounts, 'ID'); process(cvv, cvvCounts, 'US');
   return { labels, psaCounts, cvvCounts };
 }
 
 function aggregateByMonthYear(psa, cvv) {
   const months = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
   const countMap = {};
-  [...psa, ...cvv].forEach(r => {
-    const d = parseD(r.timestamp);
-    if (d) {
-      const label = `${months[d.getMonth()]} ${d.getFullYear()}`;
-      if (!countMap[label]) countMap[label] = { time: new Date(d.getFullYear(), d.getMonth(), 1).getTime(), psa: 0, cvv: 0 };
-      if (psa.includes(r)) countMap[label].psa++; else countMap[label].cvv++;
-    }
-  });
+  const process = (data, isCvv, format) => {
+    data.forEach(r => {
+      const d = parseD(r.timestamp, format);
+      if (d) {
+        const label = `${months[d.getMonth()]} ${d.getFullYear()}`;
+        if (!countMap[label]) countMap[label] = { time: new Date(d.getFullYear(), d.getMonth(), 1).getTime(), psa: 0, cvv: 0 };
+        if (isCvv) countMap[label].cvv++; else countMap[label].psa++;
+      }
+    });
+  };
+  process(psa, false, 'ID');
+  process(cvv, true, 'US');
   const labels = Object.keys(countMap).sort((a, b) => countMap[a].time - countMap[b].time);
   return { labels, psaCounts: labels.map(l => countMap[l].psa), cvvCounts: labels.map(l => countMap[l].cvv) };
 }
@@ -624,7 +642,7 @@ function processCcvByBagian(cvvData) {
   
   cvvData.forEach(row => {
     let bagian = (row.pekerjaanPadaBagian || 'TIDAK DIKETAHUI').trim().toUpperCase();
-    const d = parseD(row.timestamp);
+    const d = parseD(row.timestamp, 'US');
     if (d) {
       bagianSet.add(bagian);
       if (!countMap[bagian]) countMap[bagian] = new Array(12).fill(0);
@@ -698,19 +716,7 @@ function processBrosurByBidang(brosurData) {
     else if (raw.includes('P2TL')) bidang = 'P2TL';
     else if (raw.includes('MANBIL') || raw.includes('BACA METER') || raw.includes('BILLING')) bidang = 'MANBIL';
     
-    // Format tanggal Brosur: Bulan, Tanggal, Tahun (MM/DD/YYYY atau MM-DD-YYYY)
-    let d = null;
-    if (row.tanggal) {
-      const parts = row.tanggal.split(/[-/ :T]/);
-      if (parts.length >= 3) {
-        if (parts[0].length === 4) {
-           d = new Date(parts[0], parts[1] - 1, parts[2]);
-        } else if (parts[2].length === 4) {
-           // MM, DD, YYYY
-           d = new Date(parts[2], parts[0] - 1, parts[1]);
-        }
-      }
-    }
+    let d = parseD(row.tanggal, 'US');
     
     if (d && !isNaN(d.getTime()) && bidang) {
       countMap[bidang][d.getMonth()]++;
@@ -801,8 +807,8 @@ function generateMonitoringHtml() {
   const now = new Date();
   now.setHours(0, 0, 0, 0);
 
-  const isMatch = (timestamp, unit) => {
-    const d = parseD(timestamp);
+  const isMatch = (timestamp, unit, format) => {
+    const d = parseD(timestamp, format);
     if (!d || !((unit || '').toUpperCase().includes(targetUnit))) return false;
     
     if (currentGlobalYear !== 'all' && d.getFullYear() !== parseInt(currentGlobalYear, 10)) return false;
@@ -818,18 +824,11 @@ function generateMonitoringHtml() {
     }
   };
 
-  const psaFiltered = allPsaData.filter(r => isMatch(r.timestamp, r.namaUnit));
-  const ccvFiltered = allCvvData.filter(r => isMatch(r.timestamp, r.namaUnit));
+  const psaFiltered = allPsaData.filter(r => isMatch(r.timestamp, r.namaUnit, 'ID'));
+  const ccvFiltered = allCvvData.filter(r => isMatch(r.timestamp, r.namaUnit, 'US'));
   const brosurFiltered = allBrosurData.filter(r => { 
-    let d = null;
-    if (r.tanggal) {
-      const parts = r.tanggal.split(/[-/ :T]/);
-      if (parts.length >= 3) {
-        if (parts[0].length === 4) d = new Date(parts[0], parts[1]-1, parts[2]);
-        else if (parts[2].length === 4) d = new Date(parts[2], parts[0]-1, parts[1]);
-      }
-    }
-    if (!d || isNaN(d.getTime())) return false;
+    const d = parseD(r.tanggal, 'US');
+    if (!d) return false;
     
     if (currentGlobalYear !== 'all' && d.getFullYear() !== parseInt(currentGlobalYear, 10)) return false;
     
