@@ -15,6 +15,8 @@ let currentRecentFilter = 'today';
 let currentRecentSearch = '';
 let typeFilters = { PSA: false, CCV: false, BROSUR: false };
 let currentMonitoringFilter = 'today';
+let currentMonitoringStartDate = '';
+let currentMonitoringEndDate = '';
 let currentRankingPeriod = 'all';
 let currentGlobalYear = new Date().getFullYear().toString();
 
@@ -53,7 +55,7 @@ export async function renderMainDashboard(container) {
       allCvvData.forEach(r => addYear(r.timestamp, 'US'));
       allBrosurData.forEach(r => addYear(r.tanggal, 'US'));
       years.add(new Date().getFullYear());
-      return Array.from(years).sort((a,b) => b - a).map(y => `<option value="${y}" ${currentYearVal === String(y) ? 'selected' : ''}>Tahun: ${y}</option>`).join('');
+      return Array.from(years).sort((a, b) => b - a).map(y => `<option value="${y}" ${currentYearVal === String(y) ? 'selected' : ''}>Tahun: ${y}</option>`).join('');
     };
 
     container.innerHTML = `
@@ -243,13 +245,21 @@ function renderContent(container, filterValue) {
 
     <div class="dashboard-grid-12" style="margin-top: 1.5rem;">
       <div class="chart-container-box col-span-12" style="box-sizing: border-box; padding: 1rem;">
-        <div style="display:flex; justify-content: space-between; align-items:center; margin-bottom:1rem;">
+        <div style="display:flex; justify-content: space-between; align-items:center; margin-bottom:1rem; flex-wrap: wrap; gap: 0.5rem;">
           <h3 class="chart-title" style="margin:0;">Monitoring</h3>
-          <select id="monitoringFilterSelect" style="padding: 0.4rem 0.75rem; border-radius: 8px; border: 1px solid #e2e8f0; outline: none; font-weight: 500; font-family: inherit; background: white; cursor: pointer; color: #1e293b; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
-             <option value="today" ${currentMonitoringFilter === 'today' ? 'selected' : ''}>Hari Ini</option>
-             <option value="yesterday" ${currentMonitoringFilter === 'yesterday' ? 'selected' : ''}>Kemarin</option>
-             ${['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'].map((m, i) => `<option value="${i}" ${currentMonitoringFilter === String(i) ? 'selected' : ''}>Bulan: ${m}</option>`).join('')}
-          </select>
+          <div style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
+            <div id="monitoringRangeContainer" style="display: flex; gap: 0.5rem; align-items: center;">
+              <input type="date" id="monitoringStartDate" value="${currentMonitoringStartDate}" style="padding: 0.4rem; border-radius: 6px; border: 1px solid #e2e8f0; outline: none; font-size: 0.85rem; font-family: inherit;" />
+              <span style="font-size: 0.85rem; color: #64748b; font-weight: 500;">sampai</span>
+              <input type="date" id="monitoringEndDate" value="${currentMonitoringEndDate}" style="padding: 0.4rem; border-radius: 6px; border: 1px solid #e2e8f0; outline: none; font-size: 0.85rem; font-family: inherit;" />
+            </div>
+            <select id="monitoringFilterSelect" style="padding: 0.4rem 0.75rem; border-radius: 8px; border: 1px solid #e2e8f0; outline: none; font-weight: 500; font-family: inherit; background: white; cursor: pointer; color: #1e293b; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
+               <option value="" style="display:none"></option>
+               <option value="today" ${currentMonitoringFilter === 'today' ? 'selected' : ''}>Hari Ini</option>
+               <option value="yesterday" ${currentMonitoringFilter === 'yesterday' ? 'selected' : ''}>Kemarin</option>
+               ${['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'].map((m, i) => `<option value="${i}" ${currentMonitoringFilter === String(i) ? 'selected' : ''}>Bulan: ${m}</option>`).join('')}
+            </select>
+          </div>
         </div>
         ${generateMonitoringHtml()}
       </div>
@@ -374,8 +384,29 @@ function renderContent(container, filterValue) {
 
   document.getElementById('monitoringFilterSelect').addEventListener('change', (e) => {
     currentMonitoringFilter = e.target.value;
+    currentMonitoringStartDate = '';
+    currentMonitoringEndDate = '';
     renderContent(container, filterValue);
   });
+
+  const mStartDate = document.getElementById('monitoringStartDate');
+  const mEndDate = document.getElementById('monitoringEndDate');
+  if (mStartDate && mEndDate) {
+    mStartDate.addEventListener('change', (e) => {
+      currentMonitoringStartDate = e.target.value;
+      if (currentMonitoringStartDate && currentMonitoringEndDate) {
+        currentMonitoringFilter = 'range';
+        renderContent(container, filterValue);
+      }
+    });
+    mEndDate.addEventListener('change', (e) => {
+      currentMonitoringEndDate = e.target.value;
+      if (currentMonitoringStartDate && currentMonitoringEndDate) {
+        currentMonitoringFilter = 'range';
+        renderContent(container, filterValue);
+      }
+    });
+  }
 
   renderRecentActivities();
 }
@@ -406,7 +437,7 @@ function renderRecentActivities() {
   combined = combined.filter(row => {
     const d = parseD(row.timestamp, row.format);
     if (!d) return false;
-    
+
     if (currentGlobalYear !== 'all' && d.getFullYear() !== parseInt(currentGlobalYear, 10)) {
       return false;
     }
@@ -518,7 +549,7 @@ function parseD(ts, format = 'ID') {
     year = parseInt(parts[2], 10);
     let p0 = parseInt(parts[0], 10);
     let p1 = parseInt(parts[1], 10);
-    
+
     if (p0 > 12) {
       day = p0;
       month = p1 - 1;
@@ -634,12 +665,12 @@ function initBarChart(canvas, labels, psaData, cvvData) {
 
 function processCcvByBagian(cvvData) {
   const allMonths = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
-  
+
   const countMap = {};
   const bagianSet = new Set();
   let minMonthIndex = 12;
   let maxMonthIndex = -1;
-  
+
   cvvData.forEach(row => {
     let bagian = (row.pekerjaanPadaBagian || 'TIDAK DIKETAHUI').trim().toUpperCase();
     const d = parseD(row.timestamp, 'US');
@@ -651,10 +682,10 @@ function processCcvByBagian(cvvData) {
       if (d.getMonth() < minMonthIndex) minMonthIndex = d.getMonth();
     }
   });
-  
+
   const finalLabels = [];
   const finalIndices = [];
-  
+
   if (maxMonthIndex === -1) {
     // Fallback jika tidak ada data sama sekali, tampilkan semua 12 bulan
     finalLabels.push(...allMonths);
@@ -666,13 +697,13 @@ function processCcvByBagian(cvvData) {
       finalIndices.push(i);
     }
   }
-  
+
   const bagianArray = Array.from(bagianSet).sort();
   const colors = [
-    '#3b82f6', '#22c55e', '#f59e0b', '#a855f7', '#ec4899', 
+    '#3b82f6', '#22c55e', '#f59e0b', '#a855f7', '#ec4899',
     '#14b8a6', '#f43f5e', '#6366f1', '#8b5cf6', '#d946ef', '#0ea5e9', '#84cc16'
   ];
-  
+
   const datasets = bagianArray.map((bagian, index) => {
     const filteredData = finalIndices.map(idx => countMap[bagian][idx]);
     return {
@@ -682,7 +713,7 @@ function processCcvByBagian(cvvData) {
       borderRadius: 2
     };
   });
-  
+
   // Fallback jika dataset kosong (menghindari crash)
   if (datasets.length === 0) {
     datasets.push({
@@ -691,13 +722,13 @@ function processCcvByBagian(cvvData) {
       backgroundColor: '#cbd5e1'
     });
   }
-  
+
   return { labels: finalLabels, datasets };
 }
 
 function processBrosurByBidang(brosurData) {
   const allMonths = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
-  
+
   const categories = ['YANTEK', 'P2TL', 'MANBIL'];
   const countMap = {
     'YANTEK': new Array(12).fill(0),
@@ -706,28 +737,28 @@ function processBrosurByBidang(brosurData) {
   };
   let minMonthIndex = 12;
   let maxMonthIndex = -1;
-  
+
   brosurData.forEach(row => {
     // Mengecek baik di kolom pelaksana maupun pekerjaan untuk memastikan datanya tidak terlewat
     let raw = ((row.pelaksana || '') + ' ' + (row.pekerjaan || '')).trim().toUpperCase();
     let bidang = null;
-    
+
     if (raw.includes('YANTEK')) bidang = 'YANTEK';
     else if (raw.includes('P2TL')) bidang = 'P2TL';
     else if (raw.includes('MANBIL') || raw.includes('BACA METER') || raw.includes('BILLING')) bidang = 'MANBIL';
-    
+
     let d = parseD(row.tanggal, 'US');
-    
+
     if (d && !isNaN(d.getTime()) && bidang) {
       countMap[bidang][d.getMonth()]++;
       if (d.getMonth() > maxMonthIndex) maxMonthIndex = d.getMonth();
       if (d.getMonth() < minMonthIndex) minMonthIndex = d.getMonth();
     }
   });
-  
+
   const finalLabels = [];
   const finalIndices = [];
-  
+
   if (maxMonthIndex === -1) {
     // Jika tidak ada data yang cocok sama sekali, fallback tampilkan semua bulan 
     finalLabels.push(...allMonths);
@@ -739,9 +770,9 @@ function processBrosurByBidang(brosurData) {
       finalIndices.push(i);
     }
   }
-  
+
   const colors = ['#3b82f6', '#10b981', '#f59e0b']; // Biru, Hijau, Oranye
-  
+
   const datasets = categories.map((b, i) => {
     const filteredData = finalIndices.map(idx => countMap[b][idx]);
     return {
@@ -751,7 +782,7 @@ function processBrosurByBidang(brosurData) {
       borderRadius: 2
     };
   });
-  
+
   return { labels: finalLabels, datasets };
 }
 
@@ -810,9 +841,9 @@ function generateMonitoringHtml() {
   const isMatch = (timestamp, unit, format) => {
     const d = parseD(timestamp, format);
     if (!d || !((unit || '').toUpperCase().includes(targetUnit))) return false;
-    
+
     if (currentGlobalYear !== 'all' && d.getFullYear() !== parseInt(currentGlobalYear, 10)) return false;
-    
+
     if (targetFilter === 'today') {
       d.setHours(0, 0, 0, 0);
       return (now.getTime() - d.getTime()) === 0;
@@ -821,6 +852,14 @@ function generateMonitoringHtml() {
       return Math.floor((now.getTime() - d.getTime()) / 86400000) === 1;
     } else if (targetFilter === 'this_month') {
       return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+    } else if (targetFilter === 'range' && currentMonitoringStartDate && currentMonitoringEndDate) {
+      const startParts = currentMonitoringStartDate.split('-');
+      const endParts = currentMonitoringEndDate.split('-');
+      const sDate = new Date(parseInt(startParts[0], 10), parseInt(startParts[1], 10) - 1, parseInt(startParts[2], 10));
+      const eDate = new Date(parseInt(endParts[0], 10), parseInt(endParts[1], 10) - 1, parseInt(endParts[2], 10));
+      sDate.setHours(0, 0, 0, 0);
+      eDate.setHours(23, 59, 59, 999);
+      return d.getTime() >= sDate.getTime() && d.getTime() <= eDate.getTime();
     } else {
       return d.getMonth() === parseInt(targetFilter, 10);
     }
@@ -828,12 +867,12 @@ function generateMonitoringHtml() {
 
   const psaFiltered = allPsaData.filter(r => isMatch(r.timestamp, r.namaUnit, 'ID'));
   const ccvFiltered = allCvvData.filter(r => isMatch(r.timestamp, r.namaUnit, 'US'));
-  const brosurFiltered = allBrosurData.filter(r => { 
+  const brosurFiltered = allBrosurData.filter(r => {
     const d = parseD(r.tanggal, 'US');
     if (!d) return false;
-    
+
     if (currentGlobalYear !== 'all' && d.getFullYear() !== parseInt(currentGlobalYear, 10)) return false;
-    
+
     if (targetFilter === 'today') {
       d.setHours(0, 0, 0, 0);
       return (now.getTime() - d.getTime()) === 0;
@@ -842,6 +881,14 @@ function generateMonitoringHtml() {
       return Math.floor((now.getTime() - d.getTime()) / 86400000) === 1;
     } else if (targetFilter === 'this_month') {
       return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+    } else if (targetFilter === 'range' && currentMonitoringStartDate && currentMonitoringEndDate) {
+      const startParts = currentMonitoringStartDate.split('-');
+      const endParts = currentMonitoringEndDate.split('-');
+      const sDate = new Date(parseInt(startParts[0], 10), parseInt(startParts[1], 10) - 1, parseInt(startParts[2], 10));
+      const eDate = new Date(parseInt(endParts[0], 10), parseInt(endParts[1], 10) - 1, parseInt(endParts[2], 10));
+      sDate.setHours(0, 0, 0, 0);
+      eDate.setHours(23, 59, 59, 999);
+      return d.getTime() >= sDate.getTime() && d.getTime() <= eDate.getTime();
     } else {
       return d.getMonth() === parseInt(targetFilter, 10);
     }
@@ -855,38 +902,38 @@ function generateMonitoringHtml() {
   const unmappedPsaRoles = {};
   manajemenRoles.concat(tlRoles).forEach(r => psaCounts[r] = 0);
   psaFiltered.forEach(r => {
-      let j = (r.jabatanInspektor || '').toUpperCase();
-      
-      // Normalisasi sebutan jabatan agar cocok dengan kode singkatan
-      j = j.replace('TEAM LEADER', 'TL');
-      j = j.replace('ASISTEN MANAJER', 'ASMAN').replace('ASISTEN MANAGER', 'ASMAN');
-      j = j.replace('OPERASI', 'OP');
-      j = j.replace('PEMELIHARAAN', 'HAR');
-      j = j.replace('PENGENDALIAN KONSTRUKSI', 'DALKON');
-      j = j.replace('SAMBUNG PUTUS', 'BUNGTUS').replace('PENYAMBUNGAN DAN PEMUTUSAN', 'BUNGTUS');
-      j = j.replace('LOGISTIK', 'LOG');
-      j = j.replace('PENGENDALIAN APP', 'DALAPP');
-      j = j.replace('K3L', 'K4L');
-      j = j.replace('JARINGAN', 'JAR').replace('KONSTRUKSI', 'KONS');
-      
-      // Normalisasi Manajemen
-      j = j.replace('TRANSAKSI ENERGI LISTRIK', 'TEL').replace('TRANSAKSI ENERGI', 'TEL');
-      j = j.replace('NIAGA', 'AGA');
-      j = j.replace('PEMASARAN', 'SAR');
-      j = j.replace('KEUANGAN DAN UMUM', 'KU').replace('KEUANGAN & UMUM', 'KU');
-      j = j.replace('MANAJER', 'MANAGER').replace('MGR', 'MANAGER');
+    let j = (r.jabatanInspektor || '').toUpperCase();
 
-      let matched = false;
-      manajemenRoles.concat(tlRoles).forEach(role => { 
-        if(j.includes(role)) {
-           psaCounts[role]++; 
-           matched = true;
-        } 
-      });
-      
-      if (!matched && r.jabatanInspektor) {
-         unmappedPsaRoles[r.jabatanInspektor] = (unmappedPsaRoles[r.jabatanInspektor] || 0) + 1;
+    // Normalisasi sebutan jabatan agar cocok dengan kode singkatan
+    j = j.replace('TEAM LEADER', 'TL');
+    j = j.replace('ASISTEN MANAJER', 'ASMAN').replace('ASISTEN MANAGER', 'ASMAN');
+    j = j.replace('OPERASI', 'OP');
+    j = j.replace('PEMELIHARAAN', 'HAR');
+    j = j.replace('PENGENDALIAN KONSTRUKSI', 'DALKON');
+    j = j.replace('SAMBUNG PUTUS', 'BUNGTUS').replace('PENYAMBUNGAN DAN PEMUTUSAN', 'BUNGTUS');
+    j = j.replace('LOGISTIK', 'LOG');
+    j = j.replace('PENGENDALIAN APP', 'DALAPP');
+    j = j.replace('K3L', 'K4L');
+    j = j.replace('JARINGAN', 'JAR').replace('KONSTRUKSI', 'KONS');
+
+    // Normalisasi Manajemen
+    j = j.replace('TRANSAKSI ENERGI LISTRIK', 'TEL').replace('TRANSAKSI ENERGI', 'TEL');
+    j = j.replace('NIAGA', 'AGA');
+    j = j.replace('PEMASARAN', 'SAR');
+    j = j.replace('KEUANGAN DAN UMUM', 'KU').replace('KEUANGAN & UMUM', 'KU');
+    j = j.replace('MANAJER', 'MANAGER').replace('MGR', 'MANAGER');
+
+    let matched = false;
+    manajemenRoles.concat(tlRoles).forEach(role => {
+      if (j.includes(role)) {
+        psaCounts[role]++;
+        matched = true;
       }
+    });
+
+    if (!matched && r.jabatanInspektor) {
+      unmappedPsaRoles[r.jabatanInspektor] = (unmappedPsaRoles[r.jabatanInspektor] || 0) + 1;
+    }
   });
 
   const unmappedPsaList = Object.entries(unmappedPsaRoles).sort((a, b) => b[1] - a[1]);
@@ -894,14 +941,14 @@ function generateMonitoringHtml() {
   const brosurCounts = {};
   flyerRoles.forEach(r => brosurCounts[r] = 0);
   brosurFiltered.forEach(r => {
-      let text = ((r.pekerjaan || '') + ' ' + (r.pelaksana || '')).toUpperCase();
-      flyerRoles.forEach(role => { 
-        if (role === 'MANBILL' && (text.includes('MANBIL') || text.includes('BACA METER') || text.includes('BILLING'))) {
-          brosurCounts[role]++;
-        } else if (role !== 'MANBILL' && text.includes(role)) {
-          brosurCounts[role]++; 
-        }
-      });
+    let text = ((r.pekerjaan || '') + ' ' + (r.pelaksana || '')).toUpperCase();
+    flyerRoles.forEach(role => {
+      if (role === 'MANBILL' && (text.includes('MANBIL') || text.includes('BACA METER') || text.includes('BILLING'))) {
+        brosurCounts[role]++;
+      } else if (role !== 'MANBILL' && text.includes(role)) {
+        brosurCounts[role]++;
+      }
+    });
   });
 
   const normalizeCompany = (name) => {
