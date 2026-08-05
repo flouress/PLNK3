@@ -130,6 +130,7 @@ public class CvvService {
     private LocalDateTime parseDate(String timestamp) {
         if (timestamp == null || timestamp.trim().isEmpty()) return null;
         try {
+            // Extract the date part assuming format "MM/DD/YYYY HH:MM:SS" or "MM/DD/YYYY"
             String datePart = timestamp.split(" ")[0];
             String[] parts;
             if (datePart.contains("/")) {
@@ -139,30 +140,12 @@ public class CvvService {
             } else {
                 return null;
             }
-            int year, month, day;
-            if (parts[0].length() == 4) {
-                year = Integer.parseInt(parts[0]);
-                month = Integer.parseInt(parts[1]);
-                day = Integer.parseInt(parts[2]);
-            } else {
-                int p0 = Integer.parseInt(parts[0]);
-                int p1 = Integer.parseInt(parts[1]);
-                year = Integer.parseInt(parts[2]);
-
-                if (p0 > 12) {
-                    // Must be DD/MM/YYYY
-                    day = p0;
-                    month = p1;
-                } else if (p1 > 12) {
-                    // Must be MM/DD/YYYY
-                    month = p0;
-                    day = p1;
-                } else {
-                    // Spreadsheet uses US locale natively, so 1/12 is Jan 12 (MM/DD/YYYY)
-                    month = p0;
-                    day = p1;
-                }
-            }
+            
+            // Format is strictly MM/DD/YYYY (or MM-DD-YYYY)
+            int month = Integer.parseInt(parts[0]);
+            int day = Integer.parseInt(parts[1]);
+            int year = Integer.parseInt(parts[2]);
+            
             return LocalDateTime.of(year, month, day, 0, 0);
         } catch (Exception e) {
             return null;

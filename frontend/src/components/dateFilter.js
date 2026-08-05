@@ -52,10 +52,6 @@ export function renderDateFilter(container, currentFilters, onApply) {
         </select>
       </div>
 
-      <button class="btn-filter" id="btn-apply-filter">
-        Terapkan
-      </button>
-
       <button class="btn-reset" id="btn-reset-filter">
         Atur Ulang
       </button>
@@ -64,15 +60,19 @@ export function renderDateFilter(container, currentFilters, onApply) {
     </div>
   `;
 
-  // Apply filter
-  document.getElementById('btn-apply-filter').addEventListener('click', () => {
+  // Apply filter on change
+  const applyFilter = () => {
     const startDate = document.getElementById('filter-start').value || null;
     const endDate = document.getElementById('filter-end').value || null;
     const monthVal = document.getElementById('filter-month').value;
     const month = monthVal ? parseInt(monthVal) : null;
 
     onApply({ startDate, endDate, month });
-  });
+  };
+
+  document.getElementById('filter-start').addEventListener('change', applyFilter);
+  document.getElementById('filter-end').addEventListener('change', applyFilter);
+  document.getElementById('filter-month').addEventListener('change', applyFilter);
 
   // Reset filter
   document.getElementById('btn-reset-filter').addEventListener('click', () => {

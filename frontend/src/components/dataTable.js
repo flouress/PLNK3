@@ -56,7 +56,7 @@ export function renderDataTable(container, title, columns, data) {
       // Column filters
       for (const [key, selectedVals] of Object.entries(columnFilters)) {
          if (selectedVals && selectedVals.length > 0) {
-             const rowVal = (row[key] || '').toString();
+             const rowVal = (row[key] || '').toString().trim();
              if (!selectedVals.includes(rowVal)) return false;
          }
       }
@@ -300,7 +300,7 @@ export function renderDataTable(container, title, columns, data) {
             
             <div style="display:flex; justify-content:flex-end; gap:0.5rem; margin-top:1rem;">
                <button id="dt-filter-reset" style="padding:0.4rem 0.75rem; border:1px solid var(--color-border); background:white; color:var(--color-text); border-radius:4px; cursor:pointer; font-size:0.8rem; font-family:inherit;">Reset</button>
-               <button id="dt-filter-apply" style="padding:0.4rem 0.75rem; border:none; background:var(--color-primary); color:white; border-radius:4px; cursor:pointer; font-size:0.8rem; font-family:inherit;">Terapkan</button>
+               <button id="dt-filter-close" style="padding:0.4rem 0.75rem; border:none; background:var(--color-primary); color:white; border-radius:4px; cursor:pointer; font-size:0.8rem; font-family:inherit;">Tutup</button>
             </div>
          </div>
        ` : ''}
@@ -343,6 +343,9 @@ export function renderDataTable(container, title, columns, data) {
                 } else {
                     columnFilters[key] = columnFilters[key].filter(v => v !== val);
                 }
+                
+                currentPage = 1;
+                render();
             });
         });
         
@@ -353,10 +356,9 @@ export function renderDataTable(container, title, columns, data) {
             render();
         });
         
-        toolbarContainer.querySelector('#dt-filter-apply').addEventListener('click', () => {
+        toolbarContainer.querySelector('#dt-filter-close').addEventListener('click', () => {
             isFilterPopupOpen = false;
-            currentPage = 1;
-            render();
+            renderToolbar();
         });
     }
   }
