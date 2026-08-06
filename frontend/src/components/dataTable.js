@@ -43,7 +43,7 @@ export function renderDataTable(container, title, columns, data) {
   
   const totalItemsInitial = data.length;
 
-  function render() {
+  function render(skipToolbar = false) {
     // 1. Apply Filters
     let displayData = data.filter(row => {
       // Global search
@@ -257,7 +257,16 @@ export function renderDataTable(container, title, columns, data) {
     });
     
     // Render the toolbar externally
-    renderToolbar();
+    if (!skipToolbar) {
+      renderToolbar();
+    } else {
+      const filterBtn = document.getElementById('dt-filter-btn');
+      if (filterBtn) {
+        const hasActiveFilter = Object.values(columnFilters).some(v => v && v.length > 0);
+        filterBtn.style.background = hasActiveFilter ? 'var(--color-primary)' : 'white';
+        filterBtn.style.color = hasActiveFilter ? 'white' : 'var(--color-text)';
+      }
+    }
   }
 
   function renderToolbar() {
@@ -272,10 +281,10 @@ export function renderDataTable(container, title, columns, data) {
        </button>
        
        ${isFilterPopupOpen ? `
-         <div class="filter-popup" style="position:absolute; top:115%; right:0; background:white; border:1px solid var(--color-border); border-radius:8px; padding:1rem; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); z-index:100; min-width:250px; text-align:left;">
-            <h4 style="margin-top:0; margin-bottom:1rem; font-size:0.9rem; color:var(--color-text);">Filter Lanjutan</h4>
+         <div class="filter-popup" style="position:absolute; top:115%; right:0; background:white; border:1px solid var(--color-border); border-radius:8px; padding:1rem; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.2); z-index:100; text-align:left; max-width: 90vw;">
+            <h4 style="margin-top:0; margin-bottom:1rem; font-size:0.95rem; color:var(--color-text); font-weight: 600;">Filter Lanjutan</h4>
             
-            <div style="max-height:300px; overflow-y:auto; padding-right:0.5rem;">
+            <div style="display: flex; flex-direction: row; gap: 1rem; overflow-x: auto; padding-bottom: 0.5rem; max-width: 800px;">
                 ${columns.map(col => {
                     if (col.key.toLowerCase() === 'timestamp' || col.key.toLowerCase() === 'tanggal') return '';
                     
@@ -283,13 +292,13 @@ export function renderDataTable(container, title, columns, data) {
                     if (uniqueVals.length === 0) return '';
                     
                     return `
-                      <div style="margin-bottom:0.75rem;">
-                         <label style="display:block; font-size:0.75rem; color:var(--color-text-muted); margin-bottom:0.25rem; font-weight: 500;">${col.label}</label>
-                         <div style="max-height: 140px; overflow-y: auto; border: 1px solid var(--color-border); border-radius: 4px; padding: 0.4rem; background: white;">
+                      <div style="min-width: 220px; flex-shrink: 0; display: flex; flex-direction: column;">
+                         <label style="display:block; font-size:0.8rem; color:var(--color-text-muted); margin-bottom:0.4rem; font-weight: 600;">${col.label}</label>
+                         <div style="max-height: 220px; overflow-y: auto; border: 1px solid var(--color-border); border-radius: 6px; padding: 0.5rem; background: #f8fafc;">
                            ${uniqueVals.map(val => `
-                             <label style="display: flex; align-items: flex-start; gap: 0.4rem; font-size: 0.8rem; cursor: pointer; padding: 0.25rem 0; border-bottom: 1px solid #f9f9f9;">
-                               <input type="checkbox" class="dt-col-filter-cb" data-key="${col.key}" value="${escapeHtml(val)}" ${(columnFilters[col.key] || []).includes(val) ? 'checked' : ''} style="margin-top: 2px; cursor: pointer;" />
-                               <span style="word-break: break-word;">${escapeHtml(val)}</span>
+                             <label style="display: flex; align-items: flex-start; gap: 0.5rem; font-size: 0.8rem; cursor: pointer; padding: 0.4rem 0.2rem; border-bottom: 1px solid #e2e8f0; transition: background 0.2s;" onmouseover="this.style.backgroundColor='#f1f5f9'" onmouseout="this.style.backgroundColor='transparent'">
+                               <input type="checkbox" class="dt-col-filter-cb" data-key="${col.key}" value="${escapeHtml(val)}" ${(columnFilters[col.key] || []).includes(val) ? 'checked' : ''} style="margin-top: 2px; cursor: pointer; width: 14px; height: 14px;" />
+                               <span style="word-break: break-word; color: var(--color-text-main); line-height: 1.4;">${escapeHtml(val)}</span>
                              </label>
                            `).join('')}
                          </div>
@@ -298,9 +307,9 @@ export function renderDataTable(container, title, columns, data) {
                 }).join('')}
             </div>
             
-            <div style="display:flex; justify-content:flex-end; gap:0.5rem; margin-top:1rem;">
-               <button id="dt-filter-reset" style="padding:0.4rem 0.75rem; border:1px solid var(--color-border); background:white; color:var(--color-text); border-radius:4px; cursor:pointer; font-size:0.8rem; font-family:inherit;">Reset</button>
-               <button id="dt-filter-close" style="padding:0.4rem 0.75rem; border:none; background:var(--color-primary); color:white; border-radius:4px; cursor:pointer; font-size:0.8rem; font-family:inherit;">Tutup</button>
+            <div style="display:flex; justify-content:flex-end; gap:0.5rem; margin-top:1rem; border-top: 1px solid var(--color-border); padding-top: 1rem;">
+               <button id="dt-filter-reset" style="padding:0.5rem 1rem; border:1px solid var(--color-border); background:white; color:var(--color-text); border-radius:6px; cursor:pointer; font-size:0.85rem; font-family:inherit; font-weight: 500; transition: background 0.2s;" onmouseover="this.style.backgroundColor='#f8fafc'" onmouseout="this.style.backgroundColor='white'">Reset</button>
+               <button id="dt-filter-close" style="padding:0.5rem 1rem; border:none; background:var(--color-primary); color:white; border-radius:6px; cursor:pointer; font-size:0.85rem; font-family:inherit; font-weight: 500; transition: opacity 0.2s;" onmouseover="this.style.opacity='0.9'" onmouseout="this.style.opacity='1'">Tutup</button>
             </div>
          </div>
        ` : ''}
@@ -345,7 +354,7 @@ export function renderDataTable(container, title, columns, data) {
                 }
                 
                 currentPage = 1;
-                render();
+                render(true);
             });
         });
         
