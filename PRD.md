@@ -3,7 +3,7 @@
 **Project Name:** Dashboard Monitoring Laporan K3 PLN UP3 Kebon Jeruk (View-Only)
 **Status:** In Development
 **Date:** Juli 2026
-
+fffffffffffffffffffffff
 ---
 ## 1. Ringkasan Proyek (Overview)
 Proyek ini adalah sebuah aplikasi web *dashboard* interaktif yang dibangun secara khusus untuk mendukung efisiensi kerja Staf K3 (Keselamatan dan Kesehatan Kerja) di lingkungan **PLN UP3 Kebon Jeruk**. Aplikasi ini berfungsi untuk menampilkan rekapitulasi data laporan rutin lapangan secara *view-only*. 
