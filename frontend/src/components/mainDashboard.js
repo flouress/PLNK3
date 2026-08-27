@@ -895,7 +895,7 @@ function generateMonitoringHtml() {
   });
 
   const manajemenRoles = ['MANAGER', 'ASMAN JAR', 'ASMAN KONS', 'ASMAN TEL', 'ASMAN AGA', 'ASMAN SAR', 'ASMAN KU'];
-  const tlRoles = ['TL OP', 'TL HAR', 'TL DALKON', 'TL BUNGTUS', 'TL LOG', 'TL P2TL', 'TL BACA METER', 'TL DALAPP', 'TL ME', 'TL K4L'];
+  const tlRoles = ['TL OP', 'TL HAR', 'TL DALKON', 'TL DALSUT', 'TL BUNGTUS', 'TL LOG', 'TL CATER', 'TL DALAPP', 'TL ME', 'TL K3L'];
   const flyerRoles = ['YANTEK', 'MANBILL', 'P2TL'];
 
   const psaCounts = {};
@@ -910,10 +910,12 @@ function generateMonitoringHtml() {
     j = j.replace('OPERASI', 'OP');
     j = j.replace('PEMELIHARAAN', 'HAR');
     j = j.replace('PENGENDALIAN KONSTRUKSI', 'DALKON');
+    j = j.replace('PENGENDALIAN SUSUT', 'DALSUT');
     j = j.replace('SAMBUNG PUTUS', 'BUNGTUS').replace('PENYAMBUNGAN DAN PEMUTUSAN', 'BUNGTUS');
     j = j.replace('LOGISTIK', 'LOG');
+    j = j.replace('CATAT METER', 'CATER').replace('BACA METER', 'CATER');
     j = j.replace('PENGENDALIAN APP', 'DALAPP');
-    j = j.replace('K3L', 'K4L');
+    j = j.replace('METER ELEKTRONIK', 'ME');
     j = j.replace('JARINGAN', 'JAR').replace('KONSTRUKSI', 'KONS');
 
     // Normalisasi Manajemen
@@ -922,6 +924,9 @@ function generateMonitoringHtml() {
     j = j.replace('PEMASARAN', 'SAR');
     j = j.replace('KEUANGAN DAN UMUM', 'KU').replace('KEUANGAN & UMUM', 'KU');
     j = j.replace('MANAJER', 'MANAGER').replace('MGR', 'MANAGER');
+
+    // Normalisasi kode lama
+    if (j.includes('TL') && j.includes('P2TL')) j = j.replace('P2TL', 'DALSUT');
 
     let matched = false;
     manajemenRoles.concat(tlRoles).forEach(role => {
