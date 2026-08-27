@@ -896,7 +896,7 @@ function generateMonitoringHtml() {
 
   const manajemenRoles = ['MANAGER', 'ASMAN JAR', 'ASMAN KONS', 'ASMAN TEL', 'ASMAN AGA', 'ASMAN SAR', 'ASMAN KU'];
   const tlRoles = ['TL OP', 'TL HAR', 'TL DALKON', 'TL DALSUT', 'TL BUNGTUS', 'TL LOG', 'TL CATER', 'TL DALAPP', 'TL ME', 'TL K3L'];
-  const flyerRoles = ['YANTEK', 'MANBILL', 'P2TL'];
+  const flyerRoles = ['YANTEK', 'MANBILL', 'P2TL', 'PBPD'];
 
   const psaCounts = {};
   const unmappedPsaRoles = {};
@@ -950,7 +950,9 @@ function generateMonitoringHtml() {
     flyerRoles.forEach(role => {
       if (role === 'MANBILL' && (text.includes('MANBIL') || text.includes('BACA METER') || text.includes('BILLING'))) {
         brosurCounts[role]++;
-      } else if (role !== 'MANBILL' && text.includes(role)) {
+      } else if (role === 'PBPD' && (text.includes('PBPD') || text.includes('SR APP'))) {
+        brosurCounts[role]++;
+      } else if (role !== 'MANBILL' && role !== 'PBPD' && text.includes(role)) {
         brosurCounts[role]++;
       }
     });
