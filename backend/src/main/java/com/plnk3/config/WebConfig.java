@@ -33,7 +33,8 @@ public class WebConfig implements WebMvcConfigurer {
                 "http://localhost:4173",        // Vite preview
                 "http://localhost",             // App Android (Capacitor WebView)
                 "https://*.vercel.app",         // Semua domain Vercel
-                "https://*.up.railway.app"      // Semua domain Railway
+                "https://*.up.railway.app",     // Semua domain Railway
+                "https://*.plnbonjer.web.id"    // Domain production Dokploy
         ));
         config.setAllowedMethods(List.of("GET", "POST", "OPTIONS"));
         config.setAllowedHeaders(List.of("Authorization", "Content-Type"));
