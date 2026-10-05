@@ -1,7 +1,10 @@
 export function renderRankingFilter(container, currentFilters, onApply) {
   let selectedValue = 'all';
   if (currentFilters.month) {
-    selectedValue = 'this_month';
+    const now = new Date();
+    const isLastMonth = currentFilters.year === (now.getMonth() === 0 ? now.getFullYear() - 1 : now.getFullYear())
+      && currentFilters.month === (now.getMonth() === 0 ? 12 : now.getMonth());
+    selectedValue = isLastMonth ? 'last_month' : 'this_month';
   } else if (currentFilters.startDate) {
     selectedValue = 'this_week';
   }
@@ -23,6 +26,7 @@ export function renderRankingFilter(container, currentFilters, onApply) {
         <select id="ranking-period" style="padding:0.4rem; border:1px solid var(--color-border); border-radius:6px; outline:none; font-family:inherit;">
           <option value="all" ${selectedValue === 'all' ? 'selected' : ''}>Semua Waktu</option>
           <option value="this_month" ${selectedValue === 'this_month' ? 'selected' : ''}>Bulan Ini</option>
+          <option value="last_month" ${selectedValue === 'last_month' ? 'selected' : ''}>Bulan Lalu</option>
           <option value="this_week" ${selectedValue === 'this_week' ? 'selected' : ''}>Minggu Ini</option>
         </select>
       </div>
@@ -38,6 +42,12 @@ export function renderRankingFilter(container, currentFilters, onApply) {
     if (val === 'this_month') {
       const now = new Date();
       filters.month = now.getMonth() + 1;
+      filters.year = now.getFullYear();
+    } else if (val === 'last_month') {
+      const now = new Date();
+      const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+      filters.month = lastMonth.getMonth() + 1;
+      filters.year = lastMonth.getFullYear();
     } else if (val === 'this_week') {
       const now = new Date();
       const day = now.getDay();

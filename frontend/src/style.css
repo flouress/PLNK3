@@ -608,8 +608,32 @@ body {
   }
 
   .filter-panel {
-    flex-direction: column;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
     align-items: stretch;
+    gap: 10px;
+    padding: 14px 16px;
+  }
+
+  .filter-group {
+    width: 100%;
+  }
+
+  .filter-group input,
+  .filter-group select {
+    min-width: 0;
+    width: 100%;
+  }
+
+  .btn-filter,
+  .btn-reset {
+    align-self: end;
+    width: 100%;
+  }
+
+  #dt-toolbar-container {
+    grid-column: span 2;
+    margin-left: 0 !important;
   }
 
   .tab-navigation {
@@ -636,7 +660,21 @@ body {
 
 @media (max-width: 640px) {
   .dashboard-cards-summary {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.75rem;
+  }
+
+  .summary-card {
+    padding: 1rem;
+    border-radius: 12px;
+  }
+
+  .summary-value {
+    font-size: 1.75rem;
+  }
+
+  .summary-label {
+    font-size: 0.7rem;
   }
 }
 
@@ -732,6 +770,22 @@ body {
   }
   .canvas-wrapper {
     height: 250px;
+  }
+
+  .dashboard-grid-12 {
+    gap: 1rem;
+    margin-bottom: 1rem;
+  }
+
+  .chart-container-box {
+    padding: 1rem;
+    border-radius: 12px;
+  }
+
+  .chart-title {
+    font-size: 1rem;
+    margin-bottom: 1rem;
+    padding-bottom: 0.75rem;
   }
 }
 

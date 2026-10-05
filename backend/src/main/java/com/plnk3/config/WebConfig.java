@@ -1,8 +1,15 @@
 package com.plnk3.config;
 
+import org.springframework.boot.web.servlet.FilterRegistrationBean;
+import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.web.servlet.config.annotation.CorsRegistry;
+import org.springframework.core.Ordered;
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+import org.springframework.web.filter.CorsFilter;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
+
+import java.util.List;
 
 @Configuration
 public class WebConfig implements WebMvcConfigurer {
@@ -13,19 +20,32 @@ public class WebConfig implements WebMvcConfigurer {
         this.authInterceptor = authInterceptor;
     }
 
-    @Override
-    public void addCorsMappings(CorsRegistry registry) {
-        registry.addMapping("/api/**")
-                .allowedOriginPatterns(
-                        "http://localhost:5173",        // Vite dev server
-                        "http://localhost:4173",        // Vite preview
-                        "https://*.vercel.app",         // Semua domain Vercel
-                        "https://*.up.railway.app"      // Semua domain Railway
-                )
-                .allowedMethods("GET", "POST", "OPTIONS")
-                .allowedHeaders("Authorization", "Content-Type")
-                .allowCredentials(true)
-                .maxAge(3600); // Cache preflight 1 jam
+    /**
+     * CORS didaftarkan sebagai Filter (bukan lewat addCorsMappings) supaya headernya
+     * tetap ditambahkan meskipun request di-block lebih awal oleh filter lain
+     * (mis. RateLimitFilter), yang jalan sebelum DispatcherServlet menangani CORS.
+     */
+    @Bean
+    public FilterRegistrationBean<CorsFilter> corsFilter() {
+        CorsConfiguration config = new CorsConfiguration();
+        config.setAllowedOriginPatterns(List.of(
+                "http://localhost:5173",        // Vite dev server
+                "http://localhost:4173",        // Vite preview
+                "http://localhost",             // App Android (Capacitor WebView)
+                "https://*.vercel.app",         // Semua domain Vercel
+                "https://*.up.railway.app"      // Semua domain Railway
+        ));
+        config.setAllowedMethods(List.of("GET", "POST", "OPTIONS"));
+        config.setAllowedHeaders(List.of("Authorization", "Content-Type"));
+        config.setAllowCredentials(true);
+        config.setMaxAge(3600L); // Cache preflight 1 jam
+
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        source.registerCorsConfiguration("/api/**", config);
+
+        FilterRegistrationBean<CorsFilter> bean = new FilterRegistrationBean<>(new CorsFilter(source));
+        bean.setOrder(Ordered.HIGHEST_PRECEDENCE); // Sebelum RateLimitFilter
+        return bean;
     }
 
     @Override

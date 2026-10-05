@@ -1,0 +1,26 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "overused-font",
+        "value": "inter",
+        "files": [
+          "frontend/src/style.css"
+        ],
+        "createdAt": "2026-09-28T16:04:53.087Z",
+        "reason": "pre-existing project font choice, not introduced by this change"
+      },
+      {
+        "rule": "overused-font",
+        "value": "inter",
+        "files": [
+          "src/style.css"
+        ],
+        "createdAt": "2026-09-29T02:59:54.066Z",
+        "reason": "pre-existing project font choice, not introduced by this change"
+      }
+    ]
+  }
+}
